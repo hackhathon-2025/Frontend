@@ -24,6 +24,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
   const [correctWinner, setCorrectWinner] = useState(3);
   const [correctDraw, setCorrectDraw] = useState(2);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCompetitions() {
@@ -39,30 +40,69 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
     fetchCompetitions();
   }, []);
 
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setLoading(true);
 
-    const newGroup: Group = {
-      id: new Date().toISOString(),
-      name,
-      description: description || null,
-      ownerId: profile?.id || "1",
-      isPublic: isPublic,
-      competitionType: "tennis",
-      competitionId: competitionId,
-      scoringRules: {
-        exact_score: exactScore,
-        correct_winner: correctWinner,
-        correct_draw: correctDraw,
-      },
-      createdAt: new Date().toISOString(),
-      inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-      memberCount: 1,
-    };
+    try {
+      // Récup du token (adapte selon ton AuthContext)
+      // Idéal: ton useAuth expose `token`. Sinon fallback localStorage.
+      // const token = authTokenFromContext;
+      const token =
+        (profile as any)?.token ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
 
-    onGroupCreated(newGroup);
-    setLoading(false);
+      if (!token) {
+        setLoading(false);
+        setError("Aucun token. Connecte-toi pour créer un groupe.");
+        return;
+      }
+
+      const payload = {
+        name,
+        // description est requis côté Prisma => string (vide si non rempli)
+        description: description?.trim() ?? "",
+        isPublic,
+        // Prisma attend un Int ; si vide, on met 0 (défaut du schéma)
+        competitionId: competitionId ? Number(competitionId) : 0,
+      };
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/groups`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Erreur ${res.status}`);
+      }
+
+      const created = await res.json();
+
+      // Optionnel: mappe vers ton type Group frontend si besoin
+      // Ici on passe tel quel à onGroupCreated
+      onGroupCreated(created);
+
+      // reset du form
+      setName("");
+      setDescription("");
+      setIsPublic(false);
+      setCompetitionId("");
+    } catch (e: any) {
+      setError(e.message || "Erreur inconnue lors de la création.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

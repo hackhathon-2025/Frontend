@@ -19,7 +19,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
-  const [competitionId, setCompetitionId] = useState<number | "">("");
+  const [competitionId, setCompetitionId] = useState<string | "">("");
   const [exactScore, setExactScore] = useState(5);
   const [correctWinner, setCorrectWinner] = useState(3);
   const [correctDraw, setCorrectDraw] = useState(2);
@@ -44,24 +44,40 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
     setLoading(true);
 
     const newGroup: Group = {
-      id: new Date().toISOString(),
       name,
       description: description || null,
-      ownerId: profile?.id || "1",
+      ownerId: profile.id,
       isPublic: isPublic,
-      competitionType: "tennis",
       competitionId: competitionId,
       scoringRules: {
         exact_score: exactScore,
         correct_winner: correctWinner,
         correct_draw: correctDraw,
       },
-      createdAt: new Date().toISOString(),
-      inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-      memberCount: 1,
     };
 
-    onGroupCreated(newGroup);
+    console.log("Creating group:", newGroup);
+
+    try {
+      const group = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/groups`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(newGroup),
+      });
+
+      if (!group.ok) {
+        throw new Error("Failed to create group");
+      }
+
+      console.log("group created : " + group);
+    } catch (error) {
+      console.error("Error creating group:", error);
+      return;
+    }
+
     setLoading(false);
   }
 

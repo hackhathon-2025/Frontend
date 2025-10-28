@@ -14,18 +14,17 @@ export interface Profile {
 }
 
 export interface Group {
-  id: string;
+  id?: string;
   name: string;
   description: string | null;
   isPublic: boolean;
   ownerId: string;
   createdAt: string;
   updatedAt: string;
-  competitionType: string;
-  competitionName: string;
-  scoringRules: any; // Define a more specific interface for this if possible
+  competitionId: string;
+  scoringRules: any;
   inviteCode?: string;
-  memberCount?: number;
+  // memberCount?: number;
 }
 
 export interface GroupMember {

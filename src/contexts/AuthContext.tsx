@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userResponse = await fetch("http://localhost:3000/api/users/me", {
             headers: {
+              "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
           });

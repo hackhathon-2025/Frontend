@@ -11,31 +11,40 @@ interface MatchManagerProps {
 
 const mockMatches: Match[] = [
   {
-    id: '1',
-    home_team: 'Team A',
-    away_team: 'Team B',
-    scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    home_score: null,
-    away_score: null,
+    id: 1,
+    competition_id: 1,
+    player1_id: 1,
+    player2_id: 2,
+    start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    round: 'Finale',
     status: 'scheduled',
+    player1: 'Carlos Alcaraz',
+    player2: 'Novak Djokovic',
+    score: null,
   },
   {
-    id: '2',
-    home_team: 'Team C',
-    away_team: 'Team D',
-    scheduled_at: new Date().toISOString(),
-    home_score: 1,
-    away_score: 1,
+    id: 2,
+    competition_id: 1,
+    player1_id: 3,
+    player2_id: 4,
+    start_time: new Date().toISOString(),
+    round: 'Demi-Finale',
     status: 'live',
+    player1: 'Jannik Sinner',
+    player2: 'Daniil Medvedev',
+    score: '1-1',
   },
   {
-    id: '3',
-    home_team: 'Team E',
-    away_team: 'Team F',
-    scheduled_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    home_score: 2,
-    away_score: 0,
+    id: 3,
+    competition_id: 1,
+    player1_id: 5,
+    player2_id: 6,
+    start_time: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    round: 'Quart de Finale',
     status: 'finished',
+    player1: 'Alexander Zverev',
+    player2: 'Stefanos Tsitsipas',
+    score: '2-0',
   },
 ];
 
@@ -43,12 +52,12 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
   const [matches, setMatches] = useState<Match[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
-  const [homeTeam, setHomeTeam] = useState('');
-  const [awayTeam, setAwayTeam] = useState('');
+  const [player1, setPlayer1] = useState('');
+  const [player2, setPlayer2] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
-  const [homeScore, setHomeScore] = useState<number | ''>('');
-  const [awayScore, setAwayScore] = useState<number | ''>('');
+  const [score, setScore] = useState<string | null>(null);
   const [status, setStatus] = useState<'scheduled' | 'live' | 'finished'>('scheduled');
+  const [round, setRound] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,24 +65,24 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
   }, [group.id]);
 
   function resetForm() {
-    setHomeTeam('');
-    setAwayTeam('');
+    setPlayer1('');
+    setPlayer2('');
     setScheduledAt('');
-    setHomeScore('');
-    setAwayScore('');
+    setScore(null);
     setStatus('scheduled');
+    setRound('');
     setEditingMatch(null);
     setShowForm(false);
   }
 
   function startEdit(match: Match) {
     setEditingMatch(match);
-    setHomeTeam(match.home_team);
-    setAwayTeam(match.away_team);
-    setScheduledAt(match.scheduled_at.substring(0, 16));
-    setHomeScore(match.home_score ?? '');
-    setAwayScore(match.away_score ?? '');
-    setStatus(match.status);
+    setPlayer1(match.player1);
+    setPlayer2(match.player2);
+    setScheduledAt(match.start_time.substring(0, 16));
+    setScore(match.score);
+    setStatus(match.status as any);
+    setRound(match.round);
     setShowForm(true);
   }
 
@@ -81,14 +90,17 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
     e.preventDefault();
     setLoading(true);
 
-    const matchData = {
-      id: editingMatch ? editingMatch.id : new Date().toISOString(),
-      home_team: homeTeam,
-      away_team: awayTeam,
-      scheduled_at: scheduledAt,
-      home_score: homeScore === '' ? null : Number(homeScore),
-      away_score: awayScore === '' ? null : Number(awayScore),
+    const matchData: Match = {
+      id: editingMatch ? editingMatch.id : new Date().getTime(),
+      competition_id: 1, // Replace with actual competition id
+      player1_id: 1, // Replace with actual player id
+      player2_id: 2, // Replace with actual player id
+      player1,
+      player2,
+      start_time: scheduledAt,
+      score,
       status,
+      round,
     };
 
     if (editingMatch) {
@@ -101,7 +113,7 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
     setLoading(false);
   }
 
-  async function deleteMatch(matchId: string) {
+  async function deleteMatch(matchId: number) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce match ?')) return;
     setMatches(matches.filter((m) => m.id !== matchId));
   }
@@ -153,25 +165,25 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Équipe domicile *</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Joueur 1 *</label>
               <input
                 type="text"
-                value={homeTeam}
-                onChange={(e) => setHomeTeam(e.target.value)}
+                value={player1}
+                onChange={(e) => setPlayer1(e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Équipe A"
+                placeholder="Novak Djokovic"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Équipe extérieur *</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Joueur 2 *</label>
               <input
                 type="text"
-                value={awayTeam}
-                onChange={(e) => setAwayTeam(e.target.value)}
+                value={player2}
+                onChange={(e) => setPlayer2(e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Équipe B"
+                placeholder="Carlos Alcaraz"
                 required
               />
             </div>
@@ -184,6 +196,17 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
                 onChange={(e) => setScheduledAt(e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Round</label>
+              <input
+                type="text"
+                value={round}
+                onChange={(e) => setRound(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="Finale"
               />
             </div>
 
@@ -201,26 +224,13 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Score domicile</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Score</label>
               <input
-                type="number"
-                value={homeScore}
-                onChange={(e) => setHomeScore(e.target.value === '' ? '' : parseInt(e.target.value))}
+                type="text"
+                value={score ?? ''}
+                onChange={(e) => setScore(e.target.value)}
                 className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="-"
-                min="0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Score extérieur</label>
-              <input
-                type="number"
-                value={awayScore}
-                onChange={(e) => setAwayScore(e.target.value === '' ? '' : parseInt(e.target.value))}
-                className="w-full px-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="-"
-                min="0"
+                placeholder="6-4 6-4"
               />
             </div>
           </div>
@@ -264,15 +274,16 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
                     {match.status === 'live' ? 'En cours' : match.status === 'finished' ? 'Terminé' : 'Programmé'}
                   </span>
                   <span className="text-slate-400 text-sm">
-                    {new Date(match.scheduled_at).toLocaleString('fr-FR')}
+                    {new Date(match.start_time).toLocaleString('fr-FR')}
                   </span>
+                  <span className="text-slate-400 text-sm">{match.round}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-white font-medium">{match.home_team}</span>
+                  <span className="text-white font-medium">{match.player1}</span>
                   <span className="text-emerald-400 font-bold">
-                    {match.home_score ?? '-'} : {match.away_score ?? '-'}
+                    {match.score ?? 'vs'}
                   </span>
-                  <span className="text-white font-medium">{match.away_team}</span>
+                  <span className="text-white font-medium">{match.player2}</span>
                 </div>
               </div>
               <div className="flex gap-2">

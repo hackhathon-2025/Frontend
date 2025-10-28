@@ -1,32 +1,36 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { Trophy, LogIn } from 'lucide-react';
+import React, { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { Trophy, LogIn, AlertTriangle } from "lucide-react";
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
+      const trimmedEmail = email.trim();
       if (isSignUp) {
-        if (!username.trim()) {
-          throw new Error('Username is required');
+        const trimmedUsername = username.trim();
+        if (!trimmedUsername) {
+          throw new Error("Username is required");
         }
-        await signUp(email, password, username);
+        await signUp(trimmedEmail, password, trimmedUsername);
       } else {
-        await signIn(email, password);
+        await signIn(trimmedEmail, password);
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      console.error("Authentication error:", err);
+      setError("An unexpected error occurred. Please try again.");
+      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -48,22 +52,14 @@ export default function Auth() {
             <button
               type="button"
               onClick={() => setIsSignUp(false)}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-            !isSignUp
-              ? 'bg-emerald-500 text-white'
-              : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${!isSignUp ? "bg-emerald-500 text-white" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700"}`}
             >
               Connexion
             </button>
             <button
               type="button"
               onClick={() => setIsSignUp(true)}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                isSignUp
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${isSignUp ? "bg-emerald-500 text-white" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700"}`}
             >
               Inscription
             </button>
@@ -72,55 +68,56 @@ export default function Auth() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
-              Nom d'utilisateur
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Votre pseudo"
-              required={isSignUp}
-            />
+                <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
+                  Nom d'utilisateur
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Votre pseudo"
+                  required={isSignUp}
+                />
               </div>
             )}
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-            Email
+                Email
               </label>
               <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            placeholder="vous@exemple.com"
-            required
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="vous@exemple.com"
+                required
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-            Mot de passe
+                Mot de passe
               </label>
               <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            placeholder="••••••••"
-            required
-            minLength={6}
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="••••••••"
+                required
+                minLength={6}
               />
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
-            {error}
+              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-semibold">{error}</span>
               </div>
             )}
 
@@ -130,34 +127,12 @@ export default function Auth() {
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <LogIn className="w-5 h-5" />
-              {loading ? 'Chargement...' : isSignUp ? "S'inscrire" : 'Se connecter'}
-            </button>
-
-            <button
-              type="button"
-              onClick={async () => {
-            setEmail('test@example.com');
-            setPassword('password123');
-            setError('');
-            setLoading(true);
-            try {
-              await signIn('test@example.com', 'password123');
-            } catch (err: any) {
-              setError(err.message || 'An error occurred');
-            } finally {
-              setLoading(false);
-            }
-              }}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
-            >
-              Connexion automatique
+              {loading ? "Chargement..." : isSignUp ? "S'inscrire" : "Se connecter"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-slate-500 text-sm mt-6">
-          Rejoignez des groupes, faites vos pronostics et défiez vos amis
-        </p>
+        <p className="text-center text-slate-500 text-sm mt-6">Rejoignez des groupes, faites vos pronostics et défiez vos amis</p>
       </div>
     </div>
   );

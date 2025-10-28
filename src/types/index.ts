@@ -37,15 +37,16 @@ export interface GroupMember {
 }
 
 export interface Match {
-  id: string;
-  competition: string;
+  id: number;
+  competition_id: number;
+  player1_id: number;
+  player2_id: number;
+  start_time: string; // Format TIMESTAMP
+  round: string; // Ex: '1er Tour', 'Demi-Finale'
+  status: string;
   player1: string;
   player2: string;
-  startTime: string;
   score: string | null;
-  winner: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Prediction {

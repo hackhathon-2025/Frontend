@@ -8,27 +8,27 @@ import { useNavigate } from 'react-router-dom';
 const mockGroups: Group[] = [
   {
     id: '1',
-    name: 'Ligue 1 Connoisseurs',
-    description: 'Le groupe pour les vrais fans de la Ligue 1.',
+    name: 'Pronos Roland Garros',
+    description: 'Le groupe pour les fans de tennis et de Roland Garros.',
     isPublic: true,
     ownerId: '1',
-    competitionType: 'Football',
-    competitionName: 'Ligue 1 2024/2025',
+    competitionType: 'Tennis',
+    competitionName: 'Roland Garros 2025',
     createdAt: new Date().toISOString(),
-    inviteCode: 'L1GUE1',
+    inviteCode: 'RG2025',
     memberCount: 12,
     scoringRules: { win: 3, draw: 1, loss: 0 }
   },
   {
     id: '2',
-    name: 'Pronos NBA',
-    description: 'Ici on parle basket, pas de footix.',
+    name: 'Club des amateurs de Wimbledon',
+    description: 'Ici on parle que de Tennis, pas de footix.',
     isPublic: false,
     ownerId: '2',
-    competitionType: 'Basketball',
-    competitionName: 'NBA 2024-2025',
+    competitionType: 'Tennis',
+    competitionName: 'Wimbledon 2025',
     createdAt: new Date().toISOString(),
-    inviteCode: 'NBAFANS',
+    inviteCode: 'WIMBLEDON',
     memberCount: 8,
     scoringRules: { win: 2, loss: 0 }
   }
@@ -37,14 +37,14 @@ const mockGroups: Group[] = [
 const mockPublicGroups: Group[] = [
   {
     id: '3',
-    name: 'Public Group 1',
-    description: 'A public group for everyone.',
+    name: 'US Open 2025',
+    description: 'Un groupe public pour tous les fans de tennis.',
     isPublic: true,
     ownerId: '3',
     competitionType: 'Tennis',
-    competitionName: 'Roland Garros 2025',
+    competitionName: 'US Open 2025',
     createdAt: new Date().toISOString(),
-    inviteCode: 'PUBLIC1',
+    inviteCode: 'USOPEN',
     memberCount: 25,
     scoringRules: { win: 1 }
   }

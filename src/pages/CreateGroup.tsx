@@ -82,7 +82,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Pronostics Euro 2024"
+                placeholder="Pronostics Roland Garros 2025"
                 required
               />
             </div>
@@ -126,7 +126,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
                 value={competitionName}
                 onChange={(e) => setCompetitionName(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Euro 2024, Ligue 1, Worlds 2024..."
+                placeholder="Roland Garros, Wimbledon, US Open..."
                 required
               />
             </div>

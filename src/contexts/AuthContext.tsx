@@ -8,6 +8,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updatePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userResponse = await fetch("http://localhost:3000/api/users/me", {
             headers: {
-              "Authorization": `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
           });
 
@@ -34,12 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           const userData = await userResponse.json();
           const user: User = userData;
-          const profile: Profile | null = 'profile' in userData ? userData.profile : {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            avatar_url: null
-          };
+          const profile: Profile | null =
+            "profile" in userData
+              ? userData.profile
+              : {
+                  id: user.id,
+                  email: user.email,
+                  username: user.username,
+                  avatar_url: null,
+                };
 
           setUser(user);
           setProfile(profile);
@@ -115,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const userResponse = await fetch("http://localhost:3000/api/users/me", {
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -125,12 +129,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const userData = await userResponse.json();
       const user: User = userData;
-      const profile: Profile | null = 'profile' in userData ? userData.profile : {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        avatar_url: null
-      };
+      const profile: Profile | null =
+        "profile" in userData
+          ? userData.profile
+          : {
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              avatar_url: null,
+            };
 
       setUser(user);
       setProfile(profile);
@@ -157,7 +164,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("token");
   }
 
-  return <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut }}>{children}</AuthContext.Provider>;
+  async function updatePassword(oldPassword: string, newPassword: string) {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    const response = await fetch("http://localhost:3000/api/users/me/password", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to update password");
+    }
+  }
+
+  return <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePassword }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

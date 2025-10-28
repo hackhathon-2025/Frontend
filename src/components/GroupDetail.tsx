@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
   ArrowLeft,
   Users,
@@ -36,6 +35,36 @@ interface GroupDetailProps {
 
 type Tab = 'predictions' | 'leaderboard' | 'members' | 'admin';
 
+const mockMembers: Member[] = [
+    {
+        id: '1',
+        user_id: '1',
+        role: 'owner',
+        profiles: {
+            username: 'owner_user',
+            avatar_url: null,
+        },
+    },
+    {
+        id: '2',
+        user_id: '2',
+        role: 'admin',
+        profiles: {
+            username: 'admin_user',
+            avatar_url: null,
+        },
+    },
+    {
+        id: '3',
+        user_id: '3',
+        role: 'member',
+        profiles: {
+            username: 'member_user',
+            avatar_url: null,
+        },
+    },
+];
+
 export default function GroupDetail({ group, onBack }: GroupDetailProps) {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('predictions');
@@ -45,44 +74,8 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
   const isAdmin = members.find((m) => m.user_id === profile?.id)?.role === 'admin';
 
   useEffect(() => {
-    loadMembers();
-
-    const channel = supabase
-      .channel(`group:${group.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'group_members',
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          loadMembers();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    setMembers(mockMembers);
   }, [group.id]);
-
-  async function loadMembers() {
-    const { data, error } = await supabase
-      .from('group_members')
-      .select('id, user_id, role, profiles(username, avatar_url)')
-      .eq('group_id', group.id)
-      .eq('is_banned', false)
-      .order('joined_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading members:', error);
-      return;
-    }
-
-    setMembers(data as any);
-  }
 
   function copyInviteCode() {
     if (group.invite_code) {
@@ -94,29 +87,16 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function removeMember(memberId: string, userId: string) {
+  async function removeMember(memberId: string) {
     if (!confirm('Êtes-vous sûr de vouloir retirer ce membre ?')) return;
-
-    try {
-      const { error } = await supabase.from('group_members').delete().eq('id', memberId);
-
-      if (error) throw error;
-      loadMembers();
-    } catch (error: any) {
-      alert(error.message);
-    }
+    setMembers(members.filter((m) => m.id !== memberId));
   }
 
   async function toggleRole(memberId: string, currentRole: string) {
-    try {
-      const newRole = currentRole === 'admin' ? 'member' : 'admin';
-      const { error } = await supabase.from('group_members').update({ role: newRole }).eq('id', memberId);
-
-      if (error) throw error;
-      loadMembers();
-    } catch (error: any) {
-      alert(error.message);
-    }
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    setMembers(
+      members.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+    );
   }
 
   return (
@@ -252,7 +232,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
                           {member.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
                         </button>
                         <button
-                          onClick={() => removeMember(member.id, member.user_id)}
+                          onClick={() => removeMember(member.id)}
                           className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors"
                         >
                           Retirer

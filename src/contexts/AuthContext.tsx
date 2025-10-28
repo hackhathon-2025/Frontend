@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+interface User {
+  id: string;
+  email: string;
+}
 
 interface Profile {
   id: string;
@@ -23,80 +26,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // 🔹 Vérifie la session existante au démarrage
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+  async function signUp(email: string, password: string, username: string) {
+    // Mock sign up
+    console.log('Signing up with', email, password, username);
+    const newUser = { id: '1', email };
+    setUser(newUser);
+    setProfile({ id: '1', email, username, avatar_url: null });
+  }
 
-    // 🔹 Écoute les changements d'état d'authentification
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
-    });
-
-    // ✅ Nettoyage correct de la subscription (tu avais deux retours ici)
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  async function loadProfile(userId: string) {
+  async function signIn(email: string, password: string) {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (error) throw error;
-      setProfile(data);
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      const { user, profile } = data;
+
+      setUser(user);
+      setProfile(profile);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('Sign in error:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   }
 
-  async function signUp(email: string, password: string, username: string) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-
-    if (error) throw error;
-    if (!data.user) throw new Error('No user returned');
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.user.id,
-        email,
-        username,
-      });
-
-    if (profileError) throw profileError;
-  }
-
-  async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }
-
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // Mock sign out
     setUser(null);
     setProfile(null);
   }

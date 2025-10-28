@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Trophy, TrendingUp, Award, Medal } from 'lucide-react';
 
 interface LeaderboardEntry {
@@ -13,52 +12,47 @@ interface LeaderboardEntry {
   };
 }
 
+const mockLeaderboardEntries: LeaderboardEntry[] = [
+  {
+    id: '1',
+    user_id: '1',
+    total_points: 150,
+    correct_predictions: 10,
+    profiles: {
+      username: 'PlayerOne',
+      avatar_url: null,
+    },
+  },
+  {
+    id: '2',
+    user_id: '2',
+    total_points: 120,
+    correct_predictions: 8,
+    profiles: {
+      username: 'PlayerTwo',
+      avatar_url: null,
+    },
+  },
+  {
+    id: '3',
+    user_id: '3',
+    total_points: 90,
+    correct_predictions: 7,
+    profiles: {
+      username: 'PlayerThree',
+      avatar_url: null,
+    },
+  },
+];
+
 export default function Leaderboard({ groupId }: { groupId: string }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLeaderboard();
-
-    const channel = supabase
-      .channel(`leaderboard:${groupId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'leaderboards',
-          filter: `group_id=eq.${groupId}`,
-        },
-        () => {
-          loadLeaderboard();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    setEntries(mockLeaderboardEntries);
+    setLoading(false);
   }, [groupId]);
-
-  async function loadLeaderboard() {
-    try {
-      const { data, error } = await supabase
-        .from('leaderboards')
-        .select('id, user_id, total_points, correct_predictions, profiles(username, avatar_url)')
-        .eq('group_id', groupId)
-        .order('total_points', { ascending: false })
-        .order('correct_predictions', { ascending: false });
-
-      if (error) throw error;
-
-      setEntries((data as any) || []);
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const getMedalIcon = (position: number) => {
     switch (position) {

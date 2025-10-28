@@ -1,7 +1,6 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { Clock, Play, CheckCircle, Save, Trophy } from 'lucide-react';
 
 interface Match {
@@ -27,6 +26,46 @@ interface Group {
   scoring_rules: any;
 }
 
+const mockMatches: Match[] = [
+  {
+    id: '1',
+    home_team: 'Team A',
+    away_team: 'Team B',
+    scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    home_score: null,
+    away_score: null,
+    status: 'scheduled',
+  },
+  {
+    id: '2',
+    home_team: 'Team C',
+    away_team: 'Team D',
+    scheduled_at: new Date().toISOString(),
+    home_score: 1,
+    away_score: 1,
+    status: 'live',
+  },
+  {
+    id: '3',
+    home_team: 'Team E',
+    away_team: 'Team F',
+    scheduled_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    home_score: 2,
+    away_score: 0,
+    status: 'finished',
+  },
+];
+
+const mockPredictions: Record<string, Prediction> = {
+    '3': {
+        id: 'pred1',
+        match_id: '3',
+        predicted_home_score: 2,
+        predicted_away_score: 1,
+        points_earned: 5,
+    },
+};
+
 export default function PredictionsView({ group }: { group: Group }) {
   const { profile } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -37,81 +76,9 @@ export default function PredictionsView({ group }: { group: Group }) {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadMatches();
-    loadPredictions();
-
-    const matchesChannel = supabase
-      .channel(`predictions-matches:${group.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'matches',
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          loadMatches();
-          loadPredictions();
-        }
-      )
-      .subscribe();
-
-    const predictionsChannel = supabase
-      .channel(`predictions-user:${profile?.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'predictions',
-          filter: `user_id=eq.${profile?.id}`,
-        },
-        () => {
-          loadPredictions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(matchesChannel);
-      supabase.removeChannel(predictionsChannel);
-    };
+    setMatches(mockMatches);
+    setPredictions(mockPredictions);
   }, [group.id, profile?.id]);
-
-  async function loadMatches() {
-    const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('group_id', group.id)
-      .order('scheduled_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading matches:', error);
-      return;
-    }
-
-    setMatches(data || []);
-  }
-
-  async function loadPredictions() {
-    const { data, error } = await supabase
-      .from('predictions')
-      .select('*')
-      .eq('user_id', profile?.id);
-
-    if (error) {
-      console.error('Error loading predictions:', error);
-      return;
-    }
-
-    const predictionsMap = (data || []).reduce((acc, pred) => {
-      acc[pred.match_id] = pred;
-      return acc;
-    }, {} as Record<string, Prediction>);
-
-    setPredictions(predictionsMap);
-  }
 
   async function savePrediction(matchId: string) {
     const pending = pendingPredictions[matchId];
@@ -119,43 +86,26 @@ export default function PredictionsView({ group }: { group: Group }) {
 
     setLoading((prev) => ({ ...prev, [matchId]: true }));
 
-    try {
-      const existingPrediction = predictions[matchId];
+    const newPrediction: Prediction = {
+        id: `pred-${matchId}-${profile?.id}`,
+        match_id: matchId,
+        predicted_home_score: pending.home,
+        predicted_away_score: pending.away,
+        points_earned: 0, // This would be calculated on the backend
+    };
 
-      if (existingPrediction) {
-        const { error } = await supabase
-          .from('predictions')
-          .update({
-            predicted_home_score: pending.home,
-            predicted_away_score: pending.away,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingPrediction.id);
+    setPredictions((prev) => ({
+        ...prev,
+        [matchId]: newPrediction,
+    }));
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('predictions').insert({
-          match_id: matchId,
-          user_id: profile?.id,
-          predicted_home_score: pending.home,
-          predicted_away_score: pending.away,
-        });
-
-        if (error) throw error;
-      }
-
-      setPendingPredictions((prev) => {
+    setPendingPredictions((prev) => {
         const newPending = { ...prev };
         delete newPending[matchId];
         return newPending;
-      });
+    });
 
-      await loadPredictions();
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading((prev) => ({ ...prev, [matchId]: false }));
-    }
+    setLoading((prev) => ({ ...prev, [matchId]: false }));
   }
 
   function updatePrediction(matchId: string, field: 'home' | 'away', value: number) {

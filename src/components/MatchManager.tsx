@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Clock, Play, CheckCircle } from 'lucide-react';
 
 interface Match {
@@ -23,6 +22,36 @@ interface MatchManagerProps {
   isAdmin: boolean;
 }
 
+const mockMatches: Match[] = [
+  {
+    id: '1',
+    home_team: 'Team A',
+    away_team: 'Team B',
+    scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    home_score: null,
+    away_score: null,
+    status: 'scheduled',
+  },
+  {
+    id: '2',
+    home_team: 'Team C',
+    away_team: 'Team D',
+    scheduled_at: new Date().toISOString(),
+    home_score: 1,
+    away_score: 1,
+    status: 'live',
+  },
+  {
+    id: '3',
+    home_team: 'Team E',
+    away_team: 'Team F',
+    scheduled_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    home_score: 2,
+    away_score: 0,
+    status: 'finished',
+  },
+];
+
 export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerProps) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -36,43 +65,8 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadMatches();
-
-    const channel = supabase
-      .channel(`matches:${group.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'matches',
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          loadMatches();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    setMatches(mockMatches);
   }, [group.id]);
-
-  async function loadMatches() {
-    const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('group_id', group.id)
-      .order('scheduled_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading matches:', error);
-      return;
-    }
-
-    setMatches(data || []);
-  }
 
   function resetForm() {
     setHomeTeam('');
@@ -100,44 +94,29 @@ export default function MatchManager({ group, isOwner, isAdmin }: MatchManagerPr
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const matchData = {
-        group_id: group.id,
-        home_team: homeTeam,
-        away_team: awayTeam,
-        scheduled_at: scheduledAt,
-        home_score: homeScore === '' ? null : homeScore,
-        away_score: awayScore === '' ? null : awayScore,
-        status,
-      };
+    const matchData = {
+      id: editingMatch ? editingMatch.id : new Date().toISOString(),
+      home_team: homeTeam,
+      away_team: awayTeam,
+      scheduled_at: scheduledAt,
+      home_score: homeScore === '' ? null : Number(homeScore),
+      away_score: awayScore === '' ? null : Number(awayScore),
+      status,
+    };
 
-      if (editingMatch) {
-        const { error } = await supabase.from('matches').update(matchData).eq('id', editingMatch.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('matches').insert(matchData);
-        if (error) throw error;
-      }
-
-      resetForm();
-      loadMatches();
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading(false);
+    if (editingMatch) {
+      setMatches(matches.map((m) => (m.id === editingMatch.id ? matchData : m)));
+    } else {
+      setMatches([...matches, matchData]);
     }
+
+    resetForm();
+    setLoading(false);
   }
 
   async function deleteMatch(matchId: string) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce match ?')) return;
-
-    try {
-      const { error } = await supabase.from('matches').delete().eq('id', matchId);
-      if (error) throw error;
-      loadMatches();
-    } catch (error: any) {
-      alert(error.message);
-    }
+    setMatches(matches.filter((m) => m.id !== matchId));
   }
 
   const getStatusColor = (status: string) => {

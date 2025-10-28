@@ -1,11 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { Users, Plus, LogOut, Trophy, Search, Crown } from 'lucide-react';
 import CreateGroup from './CreateGroup';
 import GroupDetail from './GroupDetail';
 
 import { Group } from '../types/Group';
+
+const mockGroups: Group[] = [
+  {
+    id: '1',
+    name: 'Ligue 1 Connoisseurs',
+    description: 'Le groupe pour les vrais fans de la Ligue 1.',
+    is_public: true,
+    owner_id: '1',
+    competition_type: 'Football',
+    competition_name: 'Ligue 1 2024/2025',
+    created_at: new Date().toISOString(),
+    invite_code: 'L1GUE1',
+    member_count: 12,
+    scoring_rules: { win: 3, draw: 1, loss: 0 }
+  },
+  {
+    id: '2',
+    name: 'Pronos NBA',
+    description: 'Ici on parle basket, pas de footix.',
+    is_public: false,
+    owner_id: '2',
+    competition_type: 'Basketball',
+    competition_name: 'NBA 2024-2025',
+    created_at: new Date().toISOString(),
+    invite_code: 'NBAFANS',
+    member_count: 8,
+    scoring_rules: { win: 2, loss: 0 }
+  }
+];
+
+const mockPublicGroups: Group[] = [
+  {
+    id: '3',
+    name: 'Public Group 1',
+    description: 'A public group for everyone.',
+    is_public: true,
+    owner_id: '3',
+    competition_type: 'Tennis',
+    competition_name: 'Roland Garros 2025',
+    created_at: new Date().toISOString(),
+    invite_code: 'PUBLIC1',
+    member_count: 25,
+    scoring_rules: { win: 1 }
+  }
+];
 
 export default function Dashboard() {
   const { profile, signOut } = useAuth();
@@ -18,125 +62,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadGroups();
-    loadPublicGroups();
+    setGroups(mockGroups);
+    setPublicGroups(mockPublicGroups);
+    setLoading(false);
   }, []);
 
-  async function loadGroups() {
-    try {
-      const { data: memberData } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', profile?.id)
-        .eq('is_banned', false);
-
-      if (!memberData || memberData.length === 0) {
-        setGroups([]);
-        return;
-      }
-
-      const groupIds = memberData.map((m) => m.group_id);
-      const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .in('id', groupIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const groupsWithCounts = await Promise.all(
-        (data || []).map(async (group) => {
-          const { count } = await supabase
-            .from('group_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('group_id', group.id)
-            .eq('is_banned', false);
-
-          return { ...group, member_count: count || 0, scoring_rules: group.scoring_rules || null };
-        })
-      );
-
-      setGroups(groupsWithCounts);
-    } catch (error) {
-      console.error('Error loading groups:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadPublicGroups() {
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      const groupsWithCounts = await Promise.all(
-        (data || []).map(async (group) => {
-          const { count } = await supabase
-            .from('group_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('group_id', group.id)
-            .eq('is_banned', false);
-
-          return { ...group, member_count: count || 0 };
-        })
-      );
-
-      setPublicGroups(groupsWithCounts);
-    } catch (error) {
-      console.error('Error loading public groups:', error);
-    }
-  }
-
-  async function joinGroupByCode() {
+  function joinGroupByCode() {
     if (!inviteCode.trim()) return;
-
-    try {
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .select('id')
-        .eq('invite_code', inviteCode.trim())
-        .maybeSingle();
-
-      if (groupError) throw groupError;
-      if (!group) {
-        alert('Code invalide');
-        return;
+    const group = [...mockGroups, ...mockPublicGroups].find(g => g.invite_code === inviteCode.trim());
+    if (group) {
+      if (!groups.some(g => g.id === group.id)) {
+        setGroups([...groups, group]);
       }
-
-      await joinGroup(group.id);
       setInviteCode('');
-    } catch (error: any) {
-      alert(error.message);
-    }
-  }
-
-  async function joinGroup(groupId: string) {
-    try {
-      const { error } = await supabase.from('group_members').insert({
-        group_id: groupId,
-        user_id: profile?.id,
-        role: 'member',
-      });
-
-      if (error) {
-        if (error.code === '23505') {
-          alert('Vous êtes déjà membre de ce groupe');
-        } else {
-          throw error;
-        }
-        return;
-      }
-
-      await loadGroups();
-      await loadPublicGroups();
-    } catch (error: any) {
-      alert(error.message);
+    } else {
+      alert('Code invalide');
     }
   }
 
@@ -144,9 +84,9 @@ export default function Dashboard() {
     return (
       <CreateGroup
         onClose={() => setShowCreateGroup(false)}
-        onGroupCreated={() => {
+        onGroupCreated={(newGroup: Group) => {
+          setGroups([...groups, newGroup]);
           setShowCreateGroup(false);
-          loadGroups();
         }}
       />
     );
@@ -274,18 +214,6 @@ export default function Dashboard() {
                       <Users className="w-4 h-4" />
                       <span>{group.member_count || 0} membre(s)</span>
                     </div>
-
-                    {!isMember && activeTab === 'public' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          joinGroup(group.id);
-                        }}
-                        className="px-4 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm rounded-lg transition-colors"
-                      >
-                        Rejoindre
-                      </button>
-                    )}
                   </div>
                 </div>
               );

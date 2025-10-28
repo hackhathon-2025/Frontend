@@ -58,22 +58,7 @@ export default function Auth() {
             </button>
             <button
               type="button"
-              onClick={async () => {
-                setIsSignUp(true);
-                setError('');
-                setLoading(true);
-                try {
-                  // Example check to simulate account existence validation
-                  const accountExists = await signIn(email, password);
-                  if (!accountExists) {
-                    throw new Error("Le compte n'existe pas");
-                  }
-                } catch (err: any) {
-                  setError(err.message || 'Une erreur est survenue');
-                } finally {
-                  setLoading(false);
-                }
-              }}
+              onClick={() => setIsSignUp(true)}
               className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
                 isSignUp
                   ? 'bg-emerald-500 text-white'

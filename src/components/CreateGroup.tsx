@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { ArrowLeft, Trophy, Users, Target } from 'lucide-react';
+import { Group } from '../types/Group';
 
 const COMPETITION_TYPES = [
   { value: 'tennis', label: 'Tennis' },
@@ -9,7 +9,7 @@ const COMPETITION_TYPES = [
 
 interface CreateGroupProps {
   onClose: () => void;
-  onGroupCreated: () => void;
+  onGroupCreated: (newGroup: Group) => void;
 }
 
 export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProps) {
@@ -28,41 +28,26 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const { data: groupData, error: groupError } = await supabase
-        .from('groups')
-        .insert({
-          name,
-          description: description || null,
-          owner_id: profile?.id,
-          is_public: isPublic,
-          competition_type: competitionType,
-          competition_name: competitionName,
-          scoring_rules: {
+    const newGroup: Group = {
+        id: new Date().toISOString(),
+        name,
+        description: description || null,
+        owner_id: profile?.id || '1',
+        is_public: isPublic,
+        competition_type: competitionType,
+        competition_name: competitionName,
+        scoring_rules: {
             exact_score: exactScore,
             correct_winner: correctWinner,
             correct_draw: correctDraw,
-          },
-        })
-        .select()
-        .single();
+        },
+        created_at: new Date().toISOString(),
+        invite_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        member_count: 1,
+    };
 
-      if (groupError) throw groupError;
-
-      const { error: memberError } = await supabase.from('group_members').insert({
-        group_id: groupData.id,
-        user_id: profile?.id,
-        role: 'admin',
-      });
-
-      if (memberError) throw memberError;
-
-      onGroupCreated();
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
+    onGroupCreated(newGroup);
+    setLoading(false);
   }
 
   return (

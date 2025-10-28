@@ -7,37 +7,40 @@ import { Match, Prediction, Group } from '../types';
 
 const mockMatches: Match[] = [
   {
-    id: '1',
-    competition: 'Football',
-    player1: 'Team A',
-    player2: 'Team B',
-    startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    id: 1,
+    competition_id: 1,
+    player1_id: 1,
+    player2_id: 2,
+    start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    round: 'Finale',
+    status: 'scheduled',
+    player1: 'Carlos Alcaraz',
+    player2: 'Novak Djokovic',
     score: null,
-    winner: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   },
   {
-    id: '2',
-    competition: 'Football',
-    player1: 'Team C',
-    player2: 'Team D',
-    startTime: new Date().toISOString(),
+    id: 2,
+    competition_id: 1,
+    player1_id: 3,
+    player2_id: 4,
+    start_time: new Date().toISOString(),
+    round: 'Demi-Finale',
+    status: 'live',
+    player1: 'Jannik Sinner',
+    player2: 'Daniil Medvedev',
     score: '1-1',
-    winner: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   },
   {
-    id: '3',
-    competition: 'Football',
-    player1: 'Team E',
-    player2: 'Team F',
-    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    id: 3,
+    competition_id: 1,
+    player1_id: 5,
+    player2_id: 6,
+    start_time: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    round: 'Quart de Finale',
+    status: 'finished',
+    player1: 'Alexander Zverev',
+    player2: 'Stefanos Tsitsipas',
     score: '2-0',
-    winner: 'Team E',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   },
 ];
 
@@ -47,7 +50,7 @@ const mockPredictions: Record<string, Prediction> = {
         userId: '1',
         groupId: '1',
         matchId: '3',
-        winner: 'Team E',
+        winner: 'Alexander Zverev',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         predictedHomeScore: 2,
@@ -70,7 +73,7 @@ export default function PredictionsView({ group }: { group: Group }) {
     setPredictions(mockPredictions);
   }, [group.id, profile?.id]);
 
-  async function savePrediction(matchId: string) {
+  async function savePrediction(matchId: number) {
     const pending = pendingPredictions[matchId];
     if (!pending || pending.home < 0 || pending.away < 0) return;
 
@@ -80,7 +83,7 @@ export default function PredictionsView({ group }: { group: Group }) {
         id: `pred-${matchId}-${profile?.id}`,
         userId: profile?.id || '1',
         groupId: group.id,
-        matchId: matchId,
+        matchId: matchId.toString(),
         winner: '', // This would be determined by the backend based on predicted scores
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -103,7 +106,7 @@ export default function PredictionsView({ group }: { group: Group }) {
     setLoading((prev) => ({ ...prev, [matchId]: false }));
   }
 
-  function updatePrediction(matchId: string, field: 'home' | 'away', value: number) {
+  function updatePrediction(matchId: number, field: 'home' | 'away', value: number) {
     setPendingPredictions((prev) => ({
       ...prev,
       [matchId]: {
@@ -117,7 +120,7 @@ export default function PredictionsView({ group }: { group: Group }) {
     const prediction = predictions[match.id];
     const pending = pendingPredictions[match.id];
 
-    if (match.winner && prediction) {
+    if (match.status === 'finished' && prediction) {
       return (
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-sm">
@@ -128,7 +131,7 @@ export default function PredictionsView({ group }: { group: Group }) {
       );
     }
 
-    if (match.winner) {
+    if (match.status === 'finished') {
       return (
         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-sm">
           Terminé
@@ -136,7 +139,7 @@ export default function PredictionsView({ group }: { group: Group }) {
       );
     }
 
-    if (pending || (!prediction && new Date(match.startTime) > new Date())) {
+    if (pending || (!prediction && new Date(match.start_time) > new Date())) {
       return (
         <button
           onClick={() => savePrediction(match.id)}
@@ -153,9 +156,9 @@ export default function PredictionsView({ group }: { group: Group }) {
   }
 
   const getStatusIcon = (match: Match) => {
-    if (match.winner) {
+    if (match.status === 'finished') {
       return <CheckCircle className="w-4 h-4 text-green-400" />;
-    } else if (new Date(match.startTime) < new Date()) {
+    } else if (new Date(match.start_time) < new Date()) {
       return <Play className="w-4 h-4 text-orange-400" />;
     } else {
       return <Clock className="w-4 h-4 text-slate-400" />;
@@ -172,7 +175,7 @@ export default function PredictionsView({ group }: { group: Group }) {
         matches.map((match) => {
           const prediction = predictions[match.id];
           const pending = pendingPredictions[match.id];
-          const isPastMatch = new Date(match.startTime) < new Date();
+          const isPastMatch = new Date(match.start_time) < new Date();
 
           return (
             <div
@@ -182,9 +185,9 @@ export default function PredictionsView({ group }: { group: Group }) {
               <div className="flex items-center gap-3 mb-4">
                 {getStatusIcon(match)}
                 <span className="text-slate-400 text-sm">
-                  {new Date(match.startTime).toLocaleString('fr-FR')}
+                  {new Date(match.start_time).toLocaleString('fr-FR')}
                 </span>
-                {new Date(match.startTime) < new Date() && !match.winner && (
+                {new Date(match.start_time) < new Date() && match.status !== 'finished' && (
                   <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded">
                     EN DIRECT
                   </span>

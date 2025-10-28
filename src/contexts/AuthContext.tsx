@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const userResponse = await fetch("http://localhost:3000/api/users/me", {
+          const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUp(email: string, password: string, username: string) {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/auth/register", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(email: string, password: string) {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { token } = await response.json();
       localStorage.setItem("token", token);
 
-      const userResponse = await fetch("http://localhost:3000/api/users/me", {
+      const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("No token found");
     }
 
-    const response = await fetch("http://localhost:3000/api/users/me/password", {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/users/me/password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

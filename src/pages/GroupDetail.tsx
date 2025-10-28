@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
   ArrowLeft,
   Users,
@@ -12,81 +11,131 @@ import {
   Crown,
   TrendingUp,
 } from 'lucide-react';
-import MatchManager from './MatchManager';
-import PredictionsView from './PredictionsView';
-import Leaderboard from './Leaderboard';
-import GroupSettings from './GroupSettings';
+import MatchManager from '../components/MatchManager';
+import PredictionsView from '../components/PredictionsView';
+import Leaderboard from '../components/Leaderboard';
+import GroupSettings from '../components/GroupSettings';
 
-import { Group } from '../types/Group';
+import { Group, GroupMember, User as UserDTO } from '../types';
+import { useParams, useNavigate } from 'react-router-dom';
 
-interface Member {
-  id: string;
-  user_id: string;
-  role: string;
+interface Member extends GroupMember {
   profiles: {
     username: string;
     avatar_url: string | null;
   };
 }
 
-interface GroupDetailProps {
-  group: Group;
-  onBack: () => void;
-}
+const mockMembers: Member[] = [
+    {
+        id: 1,
+        userId: '1',
+        groupId: '1',
+        joinedAt: new Date().toISOString(),
+        profiles: {
+            username: 'owner_user',
+            avatar_url: null,
+        },
+    },
+    {
+        id: 2,
+        userId: '2',
+        groupId: '1',
+        joinedAt: new Date().toISOString(),
+        profiles: {
+            username: 'admin_user',
+            avatar_url: null,
+        },
+    },
+    {
+        id: 3,
+        userId: '3',
+        groupId: '1',
+        joinedAt: new Date().toISOString(),
+        profiles: {
+            username: 'member_user',
+            avatar_url: null,
+        },
+    },
+];
 
-type Tab = 'predictions' | 'leaderboard' | 'members' | 'admin';
+const mockGroups: Group[] = [
+  {
+    id: '1',
+    name: 'Ligue 1 Connoisseurs',
+    description: 'Le groupe pour les vrais fans de la Ligue 1.',
+    isPublic: true,
+    ownerId: '1',
+    competitionType: 'Football',
+    competitionName: 'Ligue 1 2024/2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'L1GUE1',
+    memberCount: 12,
+    scoringRules: { exact_score: 3, correct_winner: 1, correct_draw: 0 }
+  },
+  {
+    id: '2',
+    name: 'Pronos NBA',
+    description: 'Ici on parle basket, pas de footix.',
+    isPublic: false,
+    ownerId: '2',
+    competitionType: 'Basketball',
+    competitionName: 'NBA 2024-2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'NBAFANS',
+    memberCount: 8,
+    scoringRules: { exact_score: 2, correct_winner: 0, correct_draw: 0 }
+  },
+  {
+    id: '3',
+    name: 'Public Group 1',
+    description: 'A public group for everyone.',
+    isPublic: true,
+    ownerId: '3',
+    competitionType: 'Tennis',
+    competitionName: 'Roland Garros 2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'PUBLIC1',
+    memberCount: 25,
+    scoringRules: { exact_score: 1, correct_winner: 0, correct_draw: 0 }
+  }
+];
 
-export default function GroupDetail({ group, onBack }: GroupDetailProps) {
+export default function GroupDetail() {
   const { profile } = useAuth();
+  const { groupId } = useParams<{ groupId: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('predictions');
   const [members, setMembers] = useState<Member[]>([]);
+  const [group, setGroup] = useState<Group | null>(null);
   const [copied, setCopied] = useState(false);
-  const isOwner = group.owner_id === profile?.id;
-  const isAdmin = members.find((m) => m.user_id === profile?.id)?.role === 'admin';
 
   useEffect(() => {
-    loadMembers();
-
-    const channel = supabase
-      .channel(`group:${group.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'group_members',
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          loadMembers();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [group.id]);
-
-  async function loadMembers() {
-    const { data, error } = await supabase
-      .from('group_members')
-      .select('id, user_id, role, profiles(username, avatar_url)')
-      .eq('group_id', group.id)
-      .eq('is_banned', false)
-      .order('joined_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading members:', error);
-      return;
+    // Simulate fetching group data
+    const foundGroup = mockGroups.find(g => g.id === groupId);
+    if (foundGroup) {
+      setGroup(foundGroup);
+    } else {
+      // Handle group not found, e.g., navigate to a 404 page or dashboard
+      navigate('/dashboard');
     }
+    setMembers(mockMembers);
+  }, [groupId, navigate]);
 
-    setMembers(data as any);
+  if (!group) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Chargement du groupe...</div>
+      </div>
+    );
   }
 
+  const isOwner = group.ownerId === profile?.id;
+  const isAdmin = members.find((m) => m.userId === profile?.id)?.role === 'admin';
+
   function copyInviteCode() {
-    if (group.invite_code) {
-      navigator.clipboard.writeText(group.invite_code);
+    if (group?.inviteCode) {
+      navigator.clipboard.writeText(group.inviteCode);
     } else {
       console.error('Invite code is undefined');
     }
@@ -94,36 +143,23 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function removeMember(memberId: string, userId: string) {
+  async function removeMember(memberId: number) {
     if (!confirm('Êtes-vous sûr de vouloir retirer ce membre ?')) return;
-
-    try {
-      const { error } = await supabase.from('group_members').delete().eq('id', memberId);
-
-      if (error) throw error;
-      loadMembers();
-    } catch (error: any) {
-      alert(error.message);
-    }
+    setMembers(members.filter((m) => m.id !== memberId));
   }
 
-  async function toggleRole(memberId: string, currentRole: string) {
-    try {
-      const newRole = currentRole === 'admin' ? 'member' : 'admin';
-      const { error } = await supabase.from('group_members').update({ role: newRole }).eq('id', memberId);
-
-      if (error) throw error;
-      loadMembers();
-    } catch (error: any) {
-      alert(error.message);
-    }
+  async function toggleRole(memberId: number, currentRole: string) {
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    setMembers(
+      members.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -142,7 +178,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
                 <div className="flex items-center gap-2 text-slate-300">
                   <Trophy className="w-5 h-5 text-emerald-400" />
                   <span>
-                    {group.competition_type} - {group.competition_name}
+                    {group.competitionType} - {group.competitionName}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-300">
@@ -155,7 +191,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
             <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-600">
               <p className="text-slate-400 text-sm mb-2">Code d'invitation</p>
               <div className="flex items-center gap-2">
-                <code className="text-emerald-400 font-mono text-lg">{group.invite_code}</code>
+                <code className="text-emerald-400 font-mono text-lg">{group.inviteCode}</code>
                 <button
                   onClick={copyInviteCode}
                   className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
@@ -221,8 +257,8 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
         </div>
 
         <div>
-          {activeTab === 'predictions' && group.scoring_rules && (
-            <PredictionsView group={{ ...group, scoring_rules: group.scoring_rules }} />
+          {activeTab === 'predictions' && group.scoringRules && (
+            <PredictionsView group={{ ...group, scoringRules: group.scoringRules }} />
           )}
           {activeTab === 'leaderboard' && <Leaderboard groupId={group.id} />}
           {activeTab === 'members' && (
@@ -243,7 +279,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
                         <p className="text-slate-400 text-sm capitalize">{member.role}</p>
                       </div>
                     </div>
-                    {isOwner && member.user_id !== profile?.id && (
+                    {isOwner && member.userId !== profile?.id && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => toggleRole(member.id, member.role)}
@@ -252,7 +288,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
                           {member.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
                         </button>
                         <button
-                          onClick={() => removeMember(member.id, member.user_id)}
+                          onClick={() => removeMember(member.id)}
                           className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors"
                         >
                           Retirer
@@ -267,7 +303,7 @@ export default function GroupDetail({ group, onBack }: GroupDetailProps) {
           {activeTab === 'admin' && (isOwner || isAdmin) && (
             <>
               <MatchManager group={group} isOwner={isOwner} isAdmin={isAdmin} />
-              {isOwner && <GroupSettings group={group} onUpdate={onBack} />}
+              {isOwner && <GroupSettings group={group} onUpdate={() => navigate('/dashboard')} />}
             </>
           )}
         </div>

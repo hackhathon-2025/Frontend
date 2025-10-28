@@ -1,64 +1,60 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Trophy, TrendingUp, Award, Medal } from 'lucide-react';
+
+import { User } from '../types';
 
 interface LeaderboardEntry {
   id: string;
-  user_id: string;
-  total_points: number;
-  correct_predictions: number;
+  userId: string;
+  totalPoints: number;
+  correctPredictions: number;
   profiles: {
     username: string;
     avatar_url: string | null;
   };
 }
 
+const mockLeaderboardEntries: LeaderboardEntry[] = [
+  {
+    id: '1',
+    userId: '1',
+    totalPoints: 150,
+    correctPredictions: 10,
+    profiles: {
+      username: 'PlayerOne',
+      avatar_url: null,
+    },
+  },
+  {
+    id: '2',
+    userId: '2',
+    totalPoints: 120,
+    correctPredictions: 8,
+    profiles: {
+      username: 'PlayerTwo',
+      avatar_url: null,
+    },
+  },
+  {
+    id: '3',
+    userId: '3',
+    totalPoints: 90,
+    correctPredictions: 7,
+    profiles: {
+      username: 'PlayerThree',
+      avatar_url: null,
+    },
+  },
+];
+
 export default function Leaderboard({ groupId }: { groupId: string }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLeaderboard();
-
-    const channel = supabase
-      .channel(`leaderboard:${groupId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'leaderboards',
-          filter: `group_id=eq.${groupId}`,
-        },
-        () => {
-          loadLeaderboard();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    setEntries(mockLeaderboardEntries);
+    setLoading(false);
   }, [groupId]);
-
-  async function loadLeaderboard() {
-    try {
-      const { data, error } = await supabase
-        .from('leaderboards')
-        .select('id, user_id, total_points, correct_predictions, profiles(username, avatar_url)')
-        .eq('group_id', groupId)
-        .order('total_points', { ascending: false })
-        .order('correct_predictions', { ascending: false });
-
-      if (error) throw error;
-
-      setEntries((data as any) || []);
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const getMedalIcon = (position: number) => {
     switch (position) {
@@ -136,12 +132,12 @@ export default function Leaderboard({ groupId }: { groupId: string }) {
                   {entry.profiles.username}
                 </h3>
                 <p className="text-slate-400 text-sm">
-                  {entry.correct_predictions} pronostic(s) correct(s)
+                  {entry.correctPredictions} pronostic(s) correct(s)
                 </p>
               </div>
 
               <div className="text-right">
-                <div className="text-2xl font-bold text-emerald-400">{entry.total_points}</div>
+                <div className="text-2xl font-bold text-emerald-400">{entry.totalPoints}</div>
                 <div className="text-slate-400 text-sm">points</div>
               </div>
             </div>

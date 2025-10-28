@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Trash2, AlertTriangle } from 'lucide-react';
 
-interface Group {
-  id: string;
-  name: string;
-}
+import { Group } from '../types';
 
 interface GroupSettingsProps {
   group: Group;
@@ -26,10 +22,10 @@ export default function GroupSettings({ group, onUpdate }: GroupSettingsProps) {
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('groups').delete().eq('id', group.id);
-
-      if (error) throw error;
-
+      // Simulate deletion
+      console.log(`Deleting group ${group.name} (${group.id})`);
+      // In a real app, you would call an API here
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       onUpdate();
     } catch (error: any) {
       alert(error.message);

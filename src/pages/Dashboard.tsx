@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Users, Plus, LogOut, Trophy, Search, Crown, User as UserIcon } from 'lucide-react';
 
@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { profile, signOut } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [publicGroups, setPublicGroups] = useState<Group[]>([]);
-  const [activeTab, setActiveTab] = useState<'my-groups' | 'public'>('my-groups');
+  let [activeTab, setActiveTab] = useState<'my-groups' | 'public'>('my-groups');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -25,11 +25,12 @@ export default function Dashboard() {
         const myGroupsData = await resMyGroups.json();
 
         // Récupère les groupes publics
-        const resPublic = await fetch("http://localhost:3000/api/groups", { headers });
+        const resPublic = await fetch("http://localhost:3000/api/groups");
         const publicGroupsData = await resPublic.json();
 
         setGroups(myGroupsData);
-        setPublicGroups(publicGroupsData);
+        setPublicGroups(publicGroupsData.data);
+        console.log("publicGroupsData:", publicGroupsData);
       } catch (error) {
         console.error("Erreur lors du chargement des groupes :", error);
       } finally {
@@ -73,13 +74,6 @@ export default function Dashboard() {
     await signOut();
     navigate('/login');
   };
-
-  const handleGroupCreated = (newGroup: Group) => {
-    setGroups([...groups, newGroup]);
-    navigate('/dashboard'); // Navigate back to dashboard after creation
-  };
-
-  console.log(groups)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -165,7 +159,13 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(activeTab === 'my-groups' ? groups : publicGroups).map((group) => {
-              const isOwner = group.ownerId === profile?.id;
+              if (!group) return null;
+              let isOwner;
+              if (activeTab == 'my-groups') {
+                isOwner = group.ownerId === profile?.id;
+              } else {
+                isOwner = group.owner.id === profile?.id;
+              }
               const isMember = groups.some((g) => g.id === group.id);
 
               return (
@@ -188,8 +188,6 @@ export default function Dashboard() {
                       )}
                     </div>
                   </div>
-
-
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-700">
                     <div className="flex items-center gap-2 text-slate-400 text-sm">

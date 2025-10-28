@@ -18,12 +18,18 @@ export interface Group {
   name: string;
   isPublic: boolean;
   ownerId: string;
+  owner: Owner;
   createdAt: string;
   updatedAt: string;
   competitionName: string;
   description: string | null;
   inviteCode?: string;
   memberCount?: number;
+}
+
+export interface Owner {
+  id: string;
+  name: string;
 }
 
 export interface GroupMember {

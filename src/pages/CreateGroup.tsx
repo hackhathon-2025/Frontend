@@ -43,8 +43,6 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
     e.preventDefault();
     setLoading(true);
 
-    const selectedCompetition = competitions.find((c) => c.id === competitionId);
-
     const newGroup: Group = {
       id: new Date().toISOString(),
       name,
@@ -52,7 +50,6 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
       ownerId: profile?.id || "1",
       isPublic: isPublic,
       competitionType: "tennis",
-      competitionName: selectedCompetition ? selectedCompetition.name : "",
       competitionId: competitionId,
       scoringRules: {
         exact_score: exactScore,

@@ -16,6 +16,7 @@ export interface Profile {
 export interface Group {
   id: string;
   name: string;
+  description: string | null;
   isPublic: boolean;
   ownerId: string;
   createdAt: string;

@@ -90,7 +90,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Pronostics Euro 2024"
+                placeholder="Pronostics Roland Garros 2025"
                 required
               />
             </div>
@@ -123,6 +123,20 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Nom de la compétition *
+              </label>
+              <input
+                type="text"
+                value={competitionName}
+                onChange={(e) => setCompetitionName(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="Roland Garros, Wimbledon, US Open..."
+                required
+              />
             </div>
 
             <div className="flex items-center gap-3 p-4 bg-slate-900/30 rounded-lg">

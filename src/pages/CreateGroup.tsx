@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Trophy, Users, Target } from 'lucide-react';
-import { Group } from '../types';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { ArrowLeft, Trophy, Users, Target } from "lucide-react";
+import { Group } from "../types";
+
+interface Competition {
+  id: number;
+  name: string;
+}
 
 interface CreateGroupProps {
   onClose: () => void;
@@ -10,46 +15,51 @@ interface CreateGroupProps {
 
 export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProps) {
   const { profile } = useAuth();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
-  const [competitionListName, setCompetitionListName] = useState();
-  // const [competitionType, setCompetitionType] = useState('');
-  const [competitionName, setCompetitionName] = useState('');
-  // const [exactScore, setExactScore] = useState(5);
-  // const [correctWinner, setCorrectWinner] = useState(3);
-  // const [correctDraw, setCorrectDraw] = useState(2);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [competitionId, setCompetitionId] = useState<number | "">("");
+  const [exactScore, setExactScore] = useState(5);
+  const [correctWinner, setCorrectWinner] = useState(3);
+  const [correctDraw, setCorrectDraw] = useState(2);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchComp = async () => {
+    async function fetchCompetitions() {
       try {
-        const resCompName = await fetch("http://localhost:3000/api/competitions");
-        const myCompData = await resCompName.json();
-
-        setCompetitionListName(myCompData);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/competitions`);
+        const data = await response.json();
+        setCompetitions(data);
       } catch (error) {
-        console.error("Erreur lors du chargement des groupes :", error);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching competitions:", error);
       }
-    };
-    fetchComp();
+    }
+
+    fetchCompetitions();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
+    const selectedCompetition = competitions.find((c) => c.id === competitionId);
+
     const newGroup: Group = {
       id: new Date().toISOString(),
-      name: name,
+      name,
       description: description || null,
-      ownerId: profile?.id || '1',
+      ownerId: profile?.id || "1",
       isPublic: isPublic,
-      competitionName: competitionName,
+      competitionType: "tennis",
+      competitionName: selectedCompetition ? selectedCompetition.name : "",
+      competitionId: competitionId,
+      scoringRules: {
+        exact_score: exactScore,
+        correct_winner: correctWinner,
+        correct_draw: correctDraw,
+      },
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
       memberCount: 1,
     };
@@ -61,10 +71,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="max-w-2xl mx-auto">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors"
-        >
+        <button onClick={onClose} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-5 h-5" />
           Retour
         </button>
@@ -82,9 +89,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nom du groupe *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Nom du groupe *</label>
               <input
                 type="text"
                 value={name}
@@ -107,36 +112,20 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nom de la compétition *
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Compétition *</label>
               <select
-                value={competitionName}
-                onChange={(e) => setCompetitionName(e.target.value)}
+                value={competitionId}
+                onChange={(e) => setCompetitionId(Number(e.target.value))}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 required
               >
-                <option value="">Sélectionner un Nom</option>
-                {competitionListName.map((name) => (
-                  <option key={name.name} value={name.id}>
-                    {name.name}
+                <option value="">Sélectionner une compétition</option>
+                {competitions.map((competition) => (
+                  <option key={competition.id} value={competition.id}>
+                    {competition.name}
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nom de la compétition *
-              </label>
-              <input
-                type="text"
-                value={competitionName}
-                onChange={(e) => setCompetitionName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Roland Garros, Wimbledon, US Open..."
-                required
-              />
             </div>
 
             <div className="flex items-center gap-3 p-4 bg-slate-900/30 rounded-lg">
@@ -166,7 +155,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
               disabled={loading}
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Création...' : 'Créer le groupe'}
+              {loading ? "Création..." : "Créer le groupe"}
             </button>
           </form>
         </div>

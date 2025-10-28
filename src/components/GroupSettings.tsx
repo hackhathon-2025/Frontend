@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, AlertTriangle } from 'lucide-react';
 
-interface Group {
-  id: string;
-  name: string;
-}
+import { Group } from '../types';
 
 interface GroupSettingsProps {
   group: Group;

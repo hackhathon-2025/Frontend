@@ -3,66 +3,56 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Clock, Play, CheckCircle, Save, Trophy } from 'lucide-react';
 
-interface Match {
-  id: string;
-  home_team: string;
-  away_team: string;
-  scheduled_at: string;
-  home_score: number | null;
-  away_score: number | null;
-  status: 'scheduled' | 'live' | 'finished';
-}
-
-interface Prediction {
-  id: string;
-  match_id: string;
-  predicted_home_score: number;
-  predicted_away_score: number;
-  points_earned: number;
-}
-
-interface Group {
-  id: string;
-  scoring_rules: any;
-}
+import { Match, Prediction, Group } from '../types';
 
 const mockMatches: Match[] = [
   {
     id: '1',
-    home_team: 'Team A',
-    away_team: 'Team B',
-    scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    home_score: null,
-    away_score: null,
-    status: 'scheduled',
+    competition: 'Football',
+    player1: 'Team A',
+    player2: 'Team B',
+    startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    score: null,
+    winner: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '2',
-    home_team: 'Team C',
-    away_team: 'Team D',
-    scheduled_at: new Date().toISOString(),
-    home_score: 1,
-    away_score: 1,
-    status: 'live',
+    competition: 'Football',
+    player1: 'Team C',
+    player2: 'Team D',
+    startTime: new Date().toISOString(),
+    score: '1-1',
+    winner: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: '3',
-    home_team: 'Team E',
-    away_team: 'Team F',
-    scheduled_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    home_score: 2,
-    away_score: 0,
-    status: 'finished',
+    competition: 'Football',
+    player1: 'Team E',
+    player2: 'Team F',
+    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    score: '2-0',
+    winner: 'Team E',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 
 const mockPredictions: Record<string, Prediction> = {
     '3': {
         id: 'pred1',
-        match_id: '3',
-        predicted_home_score: 2,
-        predicted_away_score: 1,
-        points_earned: 5,
+        userId: '1',
+        groupId: '1',
+        matchId: '3',
+        winner: 'Team E',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        predictedHomeScore: 2,
+        predictedAwayScore: 1,
+        pointsEarned: 5,
     },
 };
 
@@ -88,10 +78,15 @@ export default function PredictionsView({ group }: { group: Group }) {
 
     const newPrediction: Prediction = {
         id: `pred-${matchId}-${profile?.id}`,
-        match_id: matchId,
-        predicted_home_score: pending.home,
-        predicted_away_score: pending.away,
-        points_earned: 0, // This would be calculated on the backend
+        userId: profile?.id || '1',
+        groupId: group.id,
+        matchId: matchId,
+        winner: '', // This would be determined by the backend based on predicted scores
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        predictedHomeScore: pending.home,
+        predictedAwayScore: pending.away,
+        pointsEarned: 0, // This would be calculated on the backend
     };
 
     setPredictions((prev) => ({
@@ -112,8 +107,8 @@ export default function PredictionsView({ group }: { group: Group }) {
     setPendingPredictions((prev) => ({
       ...prev,
       [matchId]: {
-        home: field === 'home' ? value : prev[matchId]?.home ?? predictions[matchId]?.predicted_home_score ?? 0,
-        away: field === 'away' ? value : prev[matchId]?.away ?? predictions[matchId]?.predicted_away_score ?? 0,
+        home: field === 'home' ? value : prev[matchId]?.home ?? predictions[matchId]?.predictedHomeScore ?? 0,
+        away: field === 'away' ? value : prev[matchId]?.away ?? predictions[matchId]?.predictedAwayScore ?? 0,
       },
     }));
   }
@@ -122,18 +117,18 @@ export default function PredictionsView({ group }: { group: Group }) {
     const prediction = predictions[match.id];
     const pending = pendingPredictions[match.id];
 
-    if (match.status === 'finished' && prediction) {
+    if (match.winner && prediction) {
       return (
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-sm">
             <Trophy className="w-4 h-4" />
-            +{prediction.points_earned} pts
+            +{prediction.pointsEarned} pts
           </div>
         </div>
       );
     }
 
-    if (match.status === 'finished') {
+    if (match.winner) {
       return (
         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-sm">
           Terminé
@@ -141,7 +136,7 @@ export default function PredictionsView({ group }: { group: Group }) {
       );
     }
 
-    if (pending || (!prediction && match.status === 'scheduled')) {
+    if (pending || (!prediction && new Date(match.startTime) > new Date())) {
       return (
         <button
           onClick={() => savePrediction(match.id)}
@@ -157,14 +152,13 @@ export default function PredictionsView({ group }: { group: Group }) {
     return null;
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'live':
-        return <Play className="w-4 h-4 text-orange-400" />;
-      case 'finished':
-        return <CheckCircle className="w-4 h-4 text-green-400" />;
-      default:
-        return <Clock className="w-4 h-4 text-slate-400" />;
+  const getStatusIcon = (match: Match) => {
+    if (match.winner) {
+      return <CheckCircle className="w-4 h-4 text-green-400" />;
+    } else if (new Date(match.startTime) < new Date()) {
+      return <Play className="w-4 h-4 text-orange-400" />;
+    } else {
+      return <Clock className="w-4 h-4 text-slate-400" />;
     }
   };
 
@@ -178,7 +172,7 @@ export default function PredictionsView({ group }: { group: Group }) {
         matches.map((match) => {
           const prediction = predictions[match.id];
           const pending = pendingPredictions[match.id];
-          const isPastMatch = new Date(match.scheduled_at) < new Date() || match.status !== 'scheduled';
+          const isPastMatch = new Date(match.startTime) < new Date();
 
           return (
             <div
@@ -186,11 +180,11 @@ export default function PredictionsView({ group }: { group: Group }) {
               className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6"
             >
               <div className="flex items-center gap-3 mb-4">
-                {getStatusIcon(match.status)}
+                {getStatusIcon(match)}
                 <span className="text-slate-400 text-sm">
-                  {new Date(match.scheduled_at).toLocaleString('fr-FR')}
+                  {new Date(match.startTime).toLocaleString('fr-FR')}
                 </span>
-                {match.status === 'live' && (
+                {new Date(match.startTime) < new Date() && !match.winner && (
                   <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded">
                     EN DIRECT
                   </span>
@@ -199,14 +193,14 @@ export default function PredictionsView({ group }: { group: Group }) {
 
               <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center mb-4">
                 <div className="text-right">
-                  <div className="text-white font-semibold text-lg mb-2">{match.home_team}</div>
+                  <div className="text-white font-semibold text-lg mb-2">{match.player1}</div>
                   {!isPastMatch ? (
                     <input
                       type="number"
                       min="0"
                       value={
                         pending?.home ??
-                        prediction?.predicted_home_score ??
+                        prediction?.predictedHomeScore ??
                         ''
                       }
                       onChange={(e) =>
@@ -217,15 +211,15 @@ export default function PredictionsView({ group }: { group: Group }) {
                     />
                   ) : (
                     <div className="text-slate-400">
-                      Pronostic: {prediction?.predicted_home_score ?? '-'}
+                      Pronostic: {prediction?.predictedHomeScore ?? '-'}
                     </div>
                   )}
                 </div>
 
                 <div className="text-center">
-                  {match.home_score !== null && match.away_score !== null ? (
+                  {match.score !== null ? (
                     <div className="text-2xl font-bold text-emerald-400">
-                      {match.home_score} : {match.away_score}
+                      {match.score}
                     </div>
                   ) : (
                     <div className="text-2xl font-bold text-slate-600">vs</div>
@@ -233,14 +227,14 @@ export default function PredictionsView({ group }: { group: Group }) {
                 </div>
 
                 <div className="text-left">
-                  <div className="text-white font-semibold text-lg mb-2">{match.away_team}</div>
+                  <div className="text-white font-semibold text-lg mb-2">{match.player2}</div>
                   {!isPastMatch ? (
                     <input
                       type="number"
                       min="0"
                       value={
                         pending?.away ??
-                        prediction?.predicted_away_score ??
+                        prediction?.predictedAwayScore ??
                         ''
                       }
                       onChange={(e) =>
@@ -251,7 +245,7 @@ export default function PredictionsView({ group }: { group: Group }) {
                     />
                   ) : (
                     <div className="text-slate-400">
-                      Pronostic: {prediction?.predicted_away_score ?? '-'}
+                      Pronostic: {prediction?.predictedAwayScore ?? '-'}
                     </div>
                   )}
                 </div>
@@ -268,9 +262,9 @@ export default function PredictionsView({ group }: { group: Group }) {
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-4">
         <h3 className="text-white font-semibold mb-2">Règles de points</h3>
         <div className="space-y-1 text-sm text-slate-400">
-          <div>Score exact: <span className="text-emerald-400 font-medium">{group.scoring_rules.exact_score} points</span></div>
-          <div>Vainqueur correct: <span className="text-emerald-400 font-medium">{group.scoring_rules.correct_winner} points</span></div>
-          <div>Match nul correct: <span className="text-emerald-400 font-medium">{group.scoring_rules.correct_draw} points</span></div>
+          <div>Score exact: <span className="text-emerald-400 font-medium">{group.scoringRules.exact_score} points</span></div>
+          <div>Vainqueur correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_winner} points</span></div>
+          <div>Match nul correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_draw} points</span></div>
         </div>
       </div>
     </div>

@@ -1,20 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Clock, Play, CheckCircle } from 'lucide-react';
 
-interface Match {
-  id: string;
-  home_team: string;
-  away_team: string;
-  scheduled_at: string;
-  home_score: number | null;
-  away_score: number | null;
-  status: 'scheduled' | 'live' | 'finished';
-}
-
-interface Group {
-  id: string;
-  name: string;
-}
+import { Match, Group } from '../types';
 
 interface MatchManagerProps {
   group: Group;

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy, TrendingUp, Award, Medal } from 'lucide-react';
 
+import { User } from '../types';
+
 interface LeaderboardEntry {
   id: string;
-  user_id: string;
-  total_points: number;
-  correct_predictions: number;
+  userId: string;
+  totalPoints: number;
+  correctPredictions: number;
   profiles: {
     username: string;
     avatar_url: string | null;
@@ -15,9 +17,9 @@ interface LeaderboardEntry {
 const mockLeaderboardEntries: LeaderboardEntry[] = [
   {
     id: '1',
-    user_id: '1',
-    total_points: 150,
-    correct_predictions: 10,
+    userId: '1',
+    totalPoints: 150,
+    correctPredictions: 10,
     profiles: {
       username: 'PlayerOne',
       avatar_url: null,
@@ -25,9 +27,9 @@ const mockLeaderboardEntries: LeaderboardEntry[] = [
   },
   {
     id: '2',
-    user_id: '2',
-    total_points: 120,
-    correct_predictions: 8,
+    userId: '2',
+    totalPoints: 120,
+    correctPredictions: 8,
     profiles: {
       username: 'PlayerTwo',
       avatar_url: null,
@@ -35,9 +37,9 @@ const mockLeaderboardEntries: LeaderboardEntry[] = [
   },
   {
     id: '3',
-    user_id: '3',
-    total_points: 90,
-    correct_predictions: 7,
+    userId: '3',
+    totalPoints: 90,
+    correctPredictions: 7,
     profiles: {
       username: 'PlayerThree',
       avatar_url: null,
@@ -130,12 +132,12 @@ export default function Leaderboard({ groupId }: { groupId: string }) {
                   {entry.profiles.username}
                 </h3>
                 <p className="text-slate-400 text-sm">
-                  {entry.correct_predictions} pronostic(s) correct(s)
+                  {entry.correctPredictions} pronostic(s) correct(s)
                 </p>
               </div>
 
               <div className="text-right">
-                <div className="text-2xl font-bold text-emerald-400">{entry.total_points}</div>
+                <div className="text-2xl font-bold text-emerald-400">{entry.totalPoints}</div>
                 <div className="text-slate-400 text-sm">points</div>
               </div>
             </div>

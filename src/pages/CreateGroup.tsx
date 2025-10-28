@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Trophy, Users, Target } from 'lucide-react';
-import { Group } from '../types/Group';
+import { Group } from '../types';
 
 const COMPETITION_TYPES = [
   { value: 'tennis', label: 'Tennis' },
@@ -32,18 +32,18 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
         id: new Date().toISOString(),
         name,
         description: description || null,
-        owner_id: profile?.id || '1',
-        is_public: isPublic,
-        competition_type: competitionType,
-        competition_name: competitionName,
-        scoring_rules: {
+        ownerId: profile?.id || '1',
+        isPublic: isPublic,
+        competitionType: competitionType,
+        competitionName: competitionName,
+        scoringRules: {
             exact_score: exactScore,
             correct_winner: correctWinner,
             correct_draw: correctDraw,
         },
-        created_at: new Date().toISOString(),
-        invite_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        member_count: 1,
+        createdAt: new Date().toISOString(),
+        inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        memberCount: 1,
     };
 
     onGroupCreated(newGroup);

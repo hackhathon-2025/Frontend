@@ -1,37 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, LogOut, Trophy, Search, Crown } from 'lucide-react';
-import CreateGroup from './CreateGroup';
-import GroupDetail from './GroupDetail';
+import { Users, Plus, LogOut, Trophy, Search, Crown, User as UserIcon } from 'lucide-react';
 
-import { Group } from '../types/Group';
+import { Group } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 const mockGroups: Group[] = [
   {
     id: '1',
     name: 'Ligue 1 Connoisseurs',
     description: 'Le groupe pour les vrais fans de la Ligue 1.',
-    is_public: true,
-    owner_id: '1',
-    competition_type: 'Football',
-    competition_name: 'Ligue 1 2024/2025',
-    created_at: new Date().toISOString(),
-    invite_code: 'L1GUE1',
-    member_count: 12,
-    scoring_rules: { win: 3, draw: 1, loss: 0 }
+    isPublic: true,
+    ownerId: '1',
+    competitionType: 'Football',
+    competitionName: 'Ligue 1 2024/2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'L1GUE1',
+    memberCount: 12,
+    scoringRules: { win: 3, draw: 1, loss: 0 }
   },
   {
     id: '2',
     name: 'Pronos NBA',
     description: 'Ici on parle basket, pas de footix.',
-    is_public: false,
-    owner_id: '2',
-    competition_type: 'Basketball',
-    competition_name: 'NBA 2024-2025',
-    created_at: new Date().toISOString(),
-    invite_code: 'NBAFANS',
-    member_count: 8,
-    scoring_rules: { win: 2, loss: 0 }
+    isPublic: false,
+    ownerId: '2',
+    competitionType: 'Basketball',
+    competitionName: 'NBA 2024-2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'NBAFANS',
+    memberCount: 8,
+    scoringRules: { win: 2, loss: 0 }
   }
 ];
 
@@ -40,14 +39,14 @@ const mockPublicGroups: Group[] = [
     id: '3',
     name: 'Public Group 1',
     description: 'A public group for everyone.',
-    is_public: true,
-    owner_id: '3',
-    competition_type: 'Tennis',
-    competition_name: 'Roland Garros 2025',
-    created_at: new Date().toISOString(),
-    invite_code: 'PUBLIC1',
-    member_count: 25,
-    scoring_rules: { win: 1 }
+    isPublic: true,
+    ownerId: '3',
+    competitionType: 'Tennis',
+    competitionName: 'Roland Garros 2025',
+    createdAt: new Date().toISOString(),
+    inviteCode: 'PUBLIC1',
+    memberCount: 25,
+    scoringRules: { win: 1 }
   }
 ];
 
@@ -55,11 +54,10 @@ export default function Dashboard() {
   const { profile, signOut } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [publicGroups, setPublicGroups] = useState<Group[]>([]);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [activeTab, setActiveTab] = useState<'my-groups' | 'public'>('my-groups');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setGroups(mockGroups);
@@ -69,7 +67,7 @@ export default function Dashboard() {
 
   function joinGroupByCode() {
     if (!inviteCode.trim()) return;
-    const group = [...mockGroups, ...mockPublicGroups].find(g => g.invite_code === inviteCode.trim());
+    const group = [...mockGroups, ...mockPublicGroups].find(g => g.inviteCode === inviteCode.trim());
     if (group) {
       if (!groups.some(g => g.id === group.id)) {
         setGroups([...groups, group]);
@@ -80,26 +78,15 @@ export default function Dashboard() {
     }
   }
 
-  if (showCreateGroup) {
-    return (
-      <CreateGroup
-        onClose={() => setShowCreateGroup(false)}
-        onGroupCreated={(newGroup: Group) => {
-          setGroups([...groups, newGroup]);
-          setShowCreateGroup(false);
-        }}
-      />
-    );
-  }
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
-  if (selectedGroup) {
-    return (
-      <GroupDetail
-        group={selectedGroup as Group}
-        onBack={() => setSelectedGroup(null)}
-      />
-    );
-  }
+  const handleGroupCreated = (newGroup: Group) => {
+    setGroups([...groups, newGroup]);
+    navigate('/dashboard'); // Navigate back to dashboard after creation
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -114,13 +101,22 @@ export default function Dashboard() {
               <p className="text-slate-400">Bienvenue, {profile?.username}</p>
             </div>
           </div>
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Déconnexion
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/account')}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+            >
+              <UserIcon className="w-4 h-4" />
+              Mon Compte
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Déconnexion
+            </button>
+          </div>
         </div>
 
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-6 mb-6">
@@ -136,12 +132,12 @@ export default function Dashboard() {
               <button
                 onClick={joinGroupByCode}
                 className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors font-medium"
-              >
+            >
                 Rejoindre
               </button>
             </div>
             <button
-              onClick={() => setShowCreateGroup(true)}
+              onClick={() => navigate('/create-group')}
               className="flex items-center justify-center gap-2 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors font-medium"
             >
               <Plus className="w-5 h-5" />
@@ -178,14 +174,14 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(activeTab === 'my-groups' ? groups : publicGroups).map((group) => {
-              const isOwner = group.owner_id === profile?.id;
+              const isOwner = group.ownerId === profile?.id;
               const isMember = groups.some((g) => g.id === group.id);
 
               return (
                 <div
                   key={group.id}
                   className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6 hover:border-emerald-500/50 transition-all cursor-pointer"
-                  onClick={() => isMember && setSelectedGroup(group)}
+                  onClick={() => isMember && navigate(`/groups/${group.id}`)}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -193,7 +189,7 @@ export default function Dashboard() {
                       {isOwner && <Crown className="w-5 h-5 text-yellow-500" />}
                     </h3>
                     <div className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">
-                      {group.is_public ? 'Public' : 'Privé'}
+                      {group.isPublic ? 'Public' : 'Privé'}
                     </div>
                   </div>
 
@@ -204,15 +200,15 @@ export default function Dashboard() {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-slate-300 text-sm">
                       <Trophy className="w-4 h-4 text-emerald-400" />
-                      <span className="font-medium">{group.competition_type}</span>
+                      <span className="font-medium">{group.competitionType}</span>
                     </div>
-                    <div className="text-slate-400 text-sm ml-6">{group.competition_name}</div>
+                    <div className="text-slate-400 text-sm ml-6">{group.competitionName}</div>
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-700">
                     <div className="flex items-center gap-2 text-slate-400 text-sm">
                       <Users className="w-4 h-4" />
-                      <span>{group.member_count || 0} membre(s)</span>
+                      <span>{group.memberCount || 0} membre(s)</span>
                     </div>
                   </div>
                 </div>

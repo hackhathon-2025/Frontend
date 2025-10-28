@@ -20,9 +20,8 @@ export interface Group {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
-  competitionType: string;
   competitionName: string;
-  scoringRules: any; // Define a more specific interface for this if possible
+  description: string | null;
   inviteCode?: string;
   memberCount?: number;
 }

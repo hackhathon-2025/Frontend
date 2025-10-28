@@ -5,51 +5,6 @@ import { Users, Plus, LogOut, Trophy, Search, Crown, User as UserIcon } from 'lu
 import { Group } from '../types';
 import { useNavigate } from 'react-router-dom';
 
-const mockGroups: Group[] = [
-  {
-    id: '1',
-    name: 'Ligue 1 Connoisseurs',
-    description: 'Le groupe pour les vrais fans de la Ligue 1.',
-    isPublic: true,
-    ownerId: '1',
-    competitionType: 'Football',
-    competitionName: 'Ligue 1 2024/2025',
-    createdAt: new Date().toISOString(),
-    inviteCode: 'L1GUE1',
-    memberCount: 12,
-    scoringRules: { win: 3, draw: 1, loss: 0 }
-  },
-  {
-    id: '2',
-    name: 'Pronos NBA',
-    description: 'Ici on parle basket, pas de footix.',
-    isPublic: false,
-    ownerId: '2',
-    competitionType: 'Basketball',
-    competitionName: 'NBA 2024-2025',
-    createdAt: new Date().toISOString(),
-    inviteCode: 'NBAFANS',
-    memberCount: 8,
-    scoringRules: { win: 2, loss: 0 }
-  }
-];
-
-const mockPublicGroups: Group[] = [
-  {
-    id: '3',
-    name: 'Public Group 1',
-    description: 'A public group for everyone.',
-    isPublic: true,
-    ownerId: '3',
-    competitionType: 'Tennis',
-    competitionName: 'Roland Garros 2025',
-    createdAt: new Date().toISOString(),
-    inviteCode: 'PUBLIC1',
-    memberCount: 25,
-    scoringRules: { win: 1 }
-  }
-];
-
 export default function Dashboard() {
   const { profile, signOut } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -60,23 +15,59 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setGroups(mockGroups);
-    setPublicGroups(mockPublicGroups);
-    setLoading(false);
+    const fetchGroups = async () => {
+      try {
+        const token = localStorage.getItem("token"); // ou selon ta logique AuthContext
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Récupère les groupes de l’utilisateur
+        const resMyGroups = await fetch("http://localhost:3000/api/groups/me", { headers });
+        const myGroupsData = await resMyGroups.json();
+
+        // Récupère les groupes publics
+        const resPublic = await fetch("http://localhost:3000/api/groups", { headers });
+        const publicGroupsData = await resPublic.json();
+
+        setGroups(myGroupsData);
+        setPublicGroups(publicGroupsData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des groupes :", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroups();
   }, []);
 
-  function joinGroupByCode() {
+
+  async function joinGroupByCode() {
     if (!inviteCode.trim()) return;
-    const group = [...mockGroups, ...mockPublicGroups].find(g => g.inviteCode === inviteCode.trim());
-    if (group) {
-      if (!groups.some(g => g.id === group.id)) {
-        setGroups([...groups, group]);
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/api/groups/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code: inviteCode.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setGroups((prev) => [...prev, data]);
+        setInviteCode("");
+      } else {
+        alert(data.error || "Code invalide");
       }
-      setInviteCode('');
-    } else {
-      alert('Code invalide');
+    } catch (error) {
+      console.error(error);
+      alert("Erreur lors de la tentative de rejoindre le groupe");
     }
   }
+
 
   const handleSignOut = async () => {
     await signOut();
@@ -87,6 +78,8 @@ export default function Dashboard() {
     setGroups([...groups, newGroup]);
     navigate('/dashboard'); // Navigate back to dashboard after creation
   };
+
+  console.log(groups)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -132,7 +125,7 @@ export default function Dashboard() {
               <button
                 onClick={joinGroupByCode}
                 className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors font-medium"
-            >
+              >
                 Rejoindre
               </button>
             </div>
@@ -149,21 +142,19 @@ export default function Dashboard() {
         <div className="flex gap-4 mb-6">
           <button
             onClick={() => setActiveTab('my-groups')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              activeTab === 'my-groups'
-                ? 'bg-emerald-500 text-white'
-                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700'
-            }`}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${activeTab === 'my-groups'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700'
+              }`}
           >
             Mes groupes ({groups.length})
           </button>
           <button
             onClick={() => setActiveTab('public')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              activeTab === 'public'
-                ? 'bg-emerald-500 text-white'
-                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700'
-            }`}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${activeTab === 'public'
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700'
+              }`}
           >
             Groupes publics
           </button>
@@ -191,19 +182,14 @@ export default function Dashboard() {
                     <div className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">
                       {group.isPublic ? 'Public' : 'Privé'}
                     </div>
-                  </div>
-
-                  {group.description && (
-                    <p className="text-slate-400 text-sm mb-3 line-clamp-2">{group.description}</p>
-                  )}
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-slate-300 text-sm">
-                      <Trophy className="w-4 h-4 text-emerald-400" />
-                      <span className="font-medium">{group.competitionType}</span>
+                    <div>
+                      {group.description && (
+                        <p className="text-slate-400 text-sm mb-3 line-clamp-2">{group.description}</p>
+                      )}
                     </div>
-                    <div className="text-slate-400 text-sm ml-6">{group.competitionName}</div>
                   </div>
+
+
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-700">
                     <div className="flex items-center gap-2 text-slate-400 text-sm">

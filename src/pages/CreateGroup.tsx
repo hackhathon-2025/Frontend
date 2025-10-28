@@ -1,11 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Trophy, Users, Target } from 'lucide-react';
 import { Group } from '../types';
-
-const COMPETITION_TYPES = [
-  { value: 'tennis', label: 'Tennis' },
-];
 
 interface CreateGroupProps {
   onClose: () => void;
@@ -17,33 +13,45 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [competitionType, setCompetitionType] = useState('');
+  const [competitionListName, setCompetitionListName] = useState();
+  // const [competitionType, setCompetitionType] = useState('');
   const [competitionName, setCompetitionName] = useState('');
-  const [exactScore, setExactScore] = useState(5);
-  const [correctWinner, setCorrectWinner] = useState(3);
-  const [correctDraw, setCorrectDraw] = useState(2);
+  // const [exactScore, setExactScore] = useState(5);
+  // const [correctWinner, setCorrectWinner] = useState(3);
+  // const [correctDraw, setCorrectDraw] = useState(2);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchComp = async () => {
+      try {
+        const resCompName = await fetch("http://localhost:3000/api/competitions");
+        const myCompData = await resCompName.json();
+
+        setCompetitionListName(myCompData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des groupes :", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComp();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     const newGroup: Group = {
-        id: new Date().toISOString(),
-        name,
-        description: description || null,
-        ownerId: profile?.id || '1',
-        isPublic: isPublic,
-        competitionType: competitionType,
-        competitionName: competitionName,
-        scoringRules: {
-            exact_score: exactScore,
-            correct_winner: correctWinner,
-            correct_draw: correctDraw,
-        },
-        createdAt: new Date().toISOString(),
-        inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        memberCount: 1,
+      id: new Date().toISOString(),
+      name: name,
+      description: description || null,
+      ownerId: profile?.id || '1',
+      isPublic: isPublic,
+      competitionName: competitionName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      memberCount: 1,
     };
 
     onGroupCreated(newGroup);
@@ -100,35 +108,21 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Type de compétition *
+                Nom de la compétition *
               </label>
               <select
-                value={competitionType}
-                onChange={(e) => setCompetitionType(e.target.value)}
+                value={competitionName}
+                onChange={(e) => setCompetitionName(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 required
               >
-                <option value="">Sélectionner un type</option>
-                {COMPETITION_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
+                <option value="">Sélectionner un Nom</option>
+                {competitionListName.map((name) => (
+                  <option key={name.name} value={name.id}>
+                    {name.name}
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nom de la compétition *
-              </label>
-              <input
-                type="text"
-                value={competitionName}
-                onChange={(e) => setCompetitionName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Euro 2024, Ligue 1, Worlds 2024..."
-                required
-              />
             </div>
 
             <div className="flex items-center gap-3 p-4 bg-slate-900/30 rounded-lg">
@@ -151,43 +145,6 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
                 <h3 className="text-lg font-semibold text-white">Règles de points</h3>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 text-slate-300">Score exact</label>
-                  <input
-                    type="number"
-                    value={exactScore}
-                    onChange={(e) => setExactScore(parseInt(e.target.value))}
-                    min="0"
-                    className="w-20 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <span className="text-slate-400">pts</span>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 text-slate-300">Vainqueur correct</label>
-                  <input
-                    type="number"
-                    value={correctWinner}
-                    onChange={(e) => setCorrectWinner(parseInt(e.target.value))}
-                    min="0"
-                    className="w-20 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <span className="text-slate-400">pts</span>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 text-slate-300">Match nul correct</label>
-                  <input
-                    type="number"
-                    value={correctDraw}
-                    onChange={(e) => setCorrectDraw(parseInt(e.target.value))}
-                    min="0"
-                    className="w-20 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <span className="text-slate-400">pts</span>
-                </div>
-              </div>
             </div>
 
             <button

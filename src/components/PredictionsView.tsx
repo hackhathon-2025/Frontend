@@ -3,63 +3,28 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Clock, Play, CheckCircle, Save, Trophy } from 'lucide-react';
 
-import { Match, Prediction, Group } from '../types';
+import { Match, Prediction, Group, Player } from '../types';
+import { predictionService } from '../services/predictionService';
 
-const mockMatches: Match[] = [
-  {
-    id: 1,
-    competition_id: 1,
-    player1_id: 1,
-    player2_id: 2,
-    start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    round: 'Finale',
-    status: 'scheduled',
-    player1: 'Carlos Alcaraz',
-    player2: 'Novak Djokovic',
-    score: null,
-  },
-  {
-    id: 2,
-    competition_id: 1,
-    player1_id: 3,
-    player2_id: 4,
-    start_time: new Date().toISOString(),
-    round: 'Demi-Finale',
-    status: 'live',
-    player1: 'Jannik Sinner',
-    player2: 'Daniil Medvedev',
-    score: '1-1',
-  },
-  {
-    id: 3,
-    competition_id: 1,
-    player1_id: 5,
-    player2_id: 6,
-    start_time: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    round: 'Quart de Finale',
-    status: 'finished',
-    player1: 'Alexander Zverev',
-    player2: 'Stefanos Tsitsipas',
-    score: '2-0',
-  },
-];
+interface PredictionsViewProps {
+  group: Group;
+  matches?: Match[];
+  loadingMatches?: boolean;
+}
 
-const mockPredictions: Record<string, Prediction> = {
-    '3': {
-        id: 'pred1',
-        userId: '1',
-        groupId: '1',
-        matchId: '3',
-        winner: 'Alexander Zverev',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        predictedHomeScore: 2,
-        predictedAwayScore: 1,
-        pointsEarned: 5,
-    },
-};
+function getPlayerName(player: string | Player): string {
+  return typeof player === 'string' ? player : player.name;
+}
 
-export default function PredictionsView({ group }: { group: Group }) {
+function getPlayerCountry(player: string | Player): string | null {
+  return typeof player === 'string' ? null : player.country;
+}
+
+function getPlayerRanking(player: string | Player): number | null {
+  return typeof player === 'string' ? null : player.ranking;
+}
+
+export default function PredictionsView({ group, matches: propMatches, loadingMatches }: PredictionsViewProps) {
   const { profile } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
@@ -69,9 +34,34 @@ export default function PredictionsView({ group }: { group: Group }) {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setMatches(mockMatches);
-    setPredictions(mockPredictions);
-  }, [group.id, profile?.id]);
+    async function loadPredictions() {
+      try {
+        if (profile?.id && group.id) {
+          const userPredictions = await predictionService.getPredictionsByGroup(group.id);
+
+          // Convert array to Record<string, Prediction>
+          const predictionsMap: Record<string, Prediction> = {};
+          userPredictions.forEach(pred => {
+            predictionsMap[pred.matchId] = pred;
+          });
+
+          setPredictions(predictionsMap);
+        }
+      } catch (error) {
+        console.error('Error loading predictions:', error);
+        setPredictions({});
+      }
+    }
+
+    // Use provided matches (no fallback to mock data)
+    if (propMatches && propMatches.length > 0) {
+      setMatches(propMatches);
+    } else {
+      setMatches([]);
+    }
+
+    loadPredictions();
+  }, [group.id, profile?.id, propMatches]);
 
   async function savePrediction(matchId: number) {
     const pending = pendingPredictions[matchId];
@@ -79,31 +69,46 @@ export default function PredictionsView({ group }: { group: Group }) {
 
     setLoading((prev) => ({ ...prev, [matchId]: true }));
 
-    const newPrediction: Prediction = {
-        id: `pred-${matchId}-${profile?.id}`,
-        userId: profile?.id || '1',
-        groupId: group.id,
-        matchId: matchId.toString(),
-        winner: '', // This would be determined by the backend based on predicted scores
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        predictedHomeScore: pending.home,
-        predictedAwayScore: pending.away,
-        pointsEarned: 0, // This would be calculated on the backend
-    };
+    try {
+      const existingPrediction = predictions[matchId];
 
-    setPredictions((prev) => ({
-        ...prev,
-        [matchId]: newPrediction,
-    }));
+      if (existingPrediction) {
+        // Update existing prediction
+        const updated = await predictionService.updatePrediction(existingPrediction.id, {
+          predictedHomeScore: pending.home,
+          predictedAwayScore: pending.away,
+        });
 
-    setPendingPredictions((prev) => {
+        setPredictions((prev) => ({
+          ...prev,
+          [matchId]: updated,
+        }));
+      } else {
+        // Create new prediction
+        const created = await predictionService.createPrediction({
+          matchId,
+          groupId: group.id,
+          predictedHomeScore: pending.home,
+          predictedAwayScore: pending.away,
+        });
+
+        setPredictions((prev) => ({
+          ...prev,
+          [matchId]: created,
+        }));
+      }
+
+      setPendingPredictions((prev) => {
         const newPending = { ...prev };
         delete newPending[matchId];
         return newPending;
-    });
-
-    setLoading((prev) => ({ ...prev, [matchId]: false }));
+      });
+    } catch (error) {
+      console.error('Error saving prediction:', error);
+      alert('Erreur lors de la sauvegarde du pronostic');
+    } finally {
+      setLoading((prev) => ({ ...prev, [matchId]: false }));
+    }
   }
 
   function updatePrediction(matchId: number, field: 'home' | 'away', value: number) {
@@ -167,9 +172,19 @@ export default function PredictionsView({ group }: { group: Group }) {
 
   return (
     <div className="space-y-4">
-      {matches.length === 0 ? (
+      {loadingMatches ? (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-12 text-center">
-          <p className="text-slate-400">Aucun match disponible pour le moment</p>
+          <p className="text-slate-400">Chargement des matchs...</p>
+        </div>
+      ) : matches.length === 0 ? (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-12 text-center">
+          <Clock className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-slate-300 mb-2">Aucun match disponible</h3>
+          <p className="text-slate-400">
+            {group.competitionId
+              ? "Les matchs de cette compétition n'ont pas encore été programmés ou ne sont pas disponibles dans l'API."
+              : "Aucune compétition n'est associée à ce groupe."}
+          </p>
         </div>
       ) : (
         matches.map((match) => {
@@ -196,7 +211,15 @@ export default function PredictionsView({ group }: { group: Group }) {
 
               <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center mb-4">
                 <div className="text-right">
-                  <div className="text-white font-semibold text-lg mb-2">{match.player1}</div>
+                  <div className="text-white font-semibold text-lg">{getPlayerName(match.player1)}</div>
+                  <div className="flex items-center justify-end gap-2 mb-2">
+                    {getPlayerCountry(match.player1) && (
+                      <span className="text-slate-400 text-sm">{getPlayerCountry(match.player1)}</span>
+                    )}
+                    {getPlayerRanking(match.player1) && (
+                      <span className="text-slate-500 text-xs">#{getPlayerRanking(match.player1)}</span>
+                    )}
+                  </div>
                   {!isPastMatch ? (
                     <input
                       type="number"
@@ -230,7 +253,15 @@ export default function PredictionsView({ group }: { group: Group }) {
                 </div>
 
                 <div className="text-left">
-                  <div className="text-white font-semibold text-lg mb-2">{match.player2}</div>
+                  <div className="text-white font-semibold text-lg">{getPlayerName(match.player2)}</div>
+                  <div className="flex items-center gap-2 mb-2">
+                    {getPlayerCountry(match.player2) && (
+                      <span className="text-slate-400 text-sm">{getPlayerCountry(match.player2)}</span>
+                    )}
+                    {getPlayerRanking(match.player2) && (
+                      <span className="text-slate-500 text-xs">#{getPlayerRanking(match.player2)}</span>
+                    )}
+                  </div>
                   {!isPastMatch ? (
                     <input
                       type="number"
@@ -262,14 +293,22 @@ export default function PredictionsView({ group }: { group: Group }) {
         })
       )}
 
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-4">
-        <h3 className="text-white font-semibold mb-2">Règles de points</h3>
-        <div className="space-y-1 text-sm text-slate-400">
-          <div>Score exact: <span className="text-emerald-400 font-medium">{group.scoringRules.exact_score} points</span></div>
-          <div>Vainqueur correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_winner} points</span></div>
-          <div>Match nul correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_draw} points</span></div>
+      {group.scoringRules && (
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-4">
+          <h3 className="text-white font-semibold mb-2">Règles de points</h3>
+          <div className="space-y-1 text-sm text-slate-400">
+            {group.scoringRules.exact_score !== undefined && (
+              <div>Score exact: <span className="text-emerald-400 font-medium">{group.scoringRules.exact_score} points</span></div>
+            )}
+            {group.scoringRules.correct_winner !== undefined && (
+              <div>Vainqueur correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_winner} points</span></div>
+            )}
+            {group.scoringRules.correct_draw !== undefined && (
+              <div>Match nul correct: <span className="text-emerald-400 font-medium">{group.scoringRules.correct_draw} points</span></div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

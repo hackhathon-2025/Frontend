@@ -10,21 +10,27 @@ import {
   Check,
   Crown,
   TrendingUp,
+  Tv,
 } from 'lucide-react';
-import MatchManager from '../components/MatchManager';
 import PredictionsView from '../components/PredictionsView';
+import MatchesView from '../components/MatchesView';
 import Leaderboard from '../components/Leaderboard';
 import GroupSettings from '../components/GroupSettings';
 
-import { Group, GroupMember, User as UserDTO } from '../types';
+import { Group, GroupMember, Match } from '../types';
 import { useParams, useNavigate } from 'react-router-dom';
+import { groupService } from '../services/groupService';
+import { matchService } from '../services/matchService';
 
 interface Member extends GroupMember {
   profiles: {
     username: string;
     avatar_url: string | null;
   };
+  role?: string;
 }
+
+type Tab = 'predictions' | 'matches' | 'leaderboard' | 'members' | 'admin';
 
 const mockMembers: Member[] = [
     {
@@ -108,18 +114,82 @@ export default function GroupDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('predictions');
   const [members, setMembers] = useState<Member[]>([]);
   const [group, setGroup] = useState<Group | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [copied, setCopied] = useState(false);
+  const [loadingMatches, setLoadingMatches] = useState(false);
 
   useEffect(() => {
-    // Simulate fetching group data
-    const foundGroup = mockGroups.find(g => g.id === groupId);
-    if (foundGroup) {
-      setGroup(foundGroup);
-    } else {
-      // Handle group not found, e.g., navigate to a 404 page or dashboard
-      navigate('/dashboard');
+    async function fetchGroupData() {
+      if (!groupId) {
+        navigate('/dashboard');
+        return;
+      }
+
+      try {
+        // Fetch both group list and members
+        const [myGroups, publicGroupsData, membersData] = await Promise.all([
+          groupService.getMyGroups(),
+          groupService.getPublicGroups(100, 0),
+          groupService.getGroupMembers(groupId).catch(() => ({ groupId, name: '', members: [] })),
+        ]);
+
+        // Find the group in either my groups or public groups
+        const allGroups = [...myGroups, ...publicGroupsData.data];
+        const foundGroup = allGroups.find(g => g.id === groupId);
+
+        if (foundGroup) {
+          setGroup(foundGroup);
+          // Map members data to the format expected by the component
+          const formattedMembers = membersData.members.map((member, index) => ({
+            id: index + 1,
+            userId: member.id,
+            groupId: groupId,
+            joinedAt: new Date().toISOString(),
+            profiles: {
+              username: member.username,
+              avatar_url: null,
+            },
+            role: member.id === foundGroup.ownerId ? 'owner' : 'member',
+          }));
+          setMembers(formattedMembers as Member[]);
+
+          // Fetch matches if the group has a competition
+          if (foundGroup.competitionId) {
+            setLoadingMatches(true);
+            try {
+              const competitionMatches = await matchService.getMatchesByCompetition(foundGroup.competitionId);
+              setMatches(competitionMatches);
+            } catch (error) {
+              console.error('Error fetching matches:', error);
+              setMatches([]);
+            } finally {
+              setLoadingMatches(false);
+            }
+          }
+        } else {
+          // Fallback to mock data if not found
+          const mockGroup = mockGroups.find(g => g.id === groupId);
+          if (mockGroup) {
+            setGroup(mockGroup);
+            setMembers(mockMembers);
+          } else {
+            navigate('/dashboard');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching group data:', error);
+        // Fallback to mock data
+        const foundGroup = mockGroups.find(g => g.id === groupId);
+        if (foundGroup) {
+          setGroup(foundGroup);
+          setMembers(mockMembers);
+        } else {
+          navigate('/dashboard');
+        }
+      }
     }
-    setMembers(mockMembers);
+
+    fetchGroupData();
   }, [groupId, navigate]);
 
   if (!group) {
@@ -143,9 +213,41 @@ export default function GroupDetail() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function removeMember(memberId: number) {
-    if (!confirm('Êtes-vous sûr de vouloir retirer ce membre ?')) return;
-    setMembers(members.filter((m) => m.id !== memberId));
+  async function banMember(userId: string) {
+    if (!group || !confirm('Êtes-vous sûr de vouloir bannir ce membre ? Il ne pourra plus rejoindre ce groupe.')) return;
+    try {
+      await groupService.banUser(group.id, userId);
+      // Refresh members
+      const membersData = await groupService.getGroupMembers(group.id);
+      const formattedMembers = membersData.members.map((member, index) => ({
+        id: index + 1,
+        userId: member.id,
+        groupId: group.id,
+        joinedAt: new Date().toISOString(),
+        profiles: {
+          username: member.username,
+          avatar_url: null,
+        },
+        role: member.id === group.ownerId ? 'owner' : 'member',
+      }));
+      setMembers(formattedMembers as Member[]);
+      alert('Membre banni avec succès');
+    } catch (error) {
+      console.error('Error banning member:', error);
+      alert('Erreur lors du bannissement du membre');
+    }
+  }
+
+  async function handleLeaveGroup() {
+    if (!group || !confirm('Êtes-vous sûr de vouloir quitter ce groupe ?')) return;
+    try {
+      await groupService.leaveGroup(group.id);
+      alert('Vous avez quitté le groupe avec succès');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Error leaving group:', error);
+      alert(error.message || 'Erreur lors de la sortie du groupe');
+    }
   }
 
   async function toggleRole(memberId: number, currentRole: string) {
@@ -175,17 +277,29 @@ export default function GroupDetail() {
               </div>
               {group.description && <p className="text-slate-400 mb-4">{group.description}</p>}
               <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Trophy className="w-5 h-5 text-emerald-400" />
-                  <span>
-                    {group.competitionType} - {group.competitionName}
-                  </span>
-                </div>
+                {(group.competitionType || group.competitionName) && (
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <Trophy className="w-5 h-5 text-emerald-400" />
+                    <span>
+                      {group.competitionType && group.competitionName
+                        ? `${group.competitionType} - ${group.competitionName}`
+                        : group.competitionType || group.competitionName}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-slate-300">
                   <Users className="w-5 h-5 text-emerald-400" />
                   <span>{members.length} membre(s)</span>
                 </div>
               </div>
+              {!isOwner && (
+                <button
+                  onClick={handleLeaveGroup}
+                  className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors font-medium"
+                >
+                  Quitter le groupe
+                </button>
+              )}
             </div>
 
             <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-600">
@@ -218,6 +332,17 @@ export default function GroupDetail() {
           >
             <Calendar className="w-5 h-5" />
             Pronostics
+          </button>
+          <button
+            onClick={() => setActiveTab('matches')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+              activeTab === 'matches'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700'
+            }`}
+          >
+            <Tv className="w-5 h-5" />
+            Matchs
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
@@ -257,10 +382,21 @@ export default function GroupDetail() {
         </div>
 
         <div>
-          {activeTab === 'predictions' && group.scoringRules && (
-            <PredictionsView group={{ ...group, scoringRules: group.scoringRules }} />
+          {activeTab === 'predictions' && (
+            <PredictionsView
+              group={group}
+              matches={matches}
+              loadingMatches={loadingMatches}
+            />
           )}
-          {activeTab === 'leaderboard' && <Leaderboard groupId={group.id} />}
+          {activeTab === 'matches' && (
+            <MatchesView
+              matches={matches}
+              loadingMatches={loadingMatches}
+              competitionId={group.competitionId}
+            />
+          )}
+          {activeTab === 'leaderboard' && group.id && <Leaderboard groupId={group.id} />}
           {activeTab === 'members' && (
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6">
               <h2 className="text-xl font-bold text-white mb-4">Membres du groupe</h2>
@@ -288,10 +424,10 @@ export default function GroupDetail() {
                           {member.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
                         </button>
                         <button
-                          onClick={() => removeMember(member.id)}
+                          onClick={() => banMember(member.userId)}
                           className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors"
                         >
-                          Retirer
+                          Bannir
                         </button>
                       </div>
                     )}
@@ -302,8 +438,14 @@ export default function GroupDetail() {
           )}
           {activeTab === 'admin' && (isOwner || isAdmin) && (
             <>
-              <MatchManager group={group} isOwner={isOwner} isAdmin={isAdmin} />
               {isOwner && <GroupSettings group={group} onUpdate={() => navigate('/dashboard')} />}
+              {!isOwner && (
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-12 text-center">
+                  <p className="text-slate-400">
+                    Seul le propriétaire du groupe peut modifier les paramètres.
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>

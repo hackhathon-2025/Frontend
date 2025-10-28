@@ -4,6 +4,7 @@ import { Users, Plus, LogOut, Trophy, Search, Crown, User as UserIcon } from 'lu
 
 import { Group } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { groupService } from '../services/groupService';
 
 const mockGroups: Group[] = [
   {
@@ -60,21 +61,55 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setGroups(mockGroups);
-    setPublicGroups(mockPublicGroups);
-    setLoading(false);
+    async function fetchGroups() {
+      try {
+        setLoading(true);
+        const [myGroups, publicGroupsData] = await Promise.all([
+          groupService.getMyGroups(),
+          groupService.getPublicGroups(20, 0),
+        ]);
+        setGroups(myGroups);
+        setPublicGroups(publicGroupsData.data);
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+        // Fallback to mock data on error
+        setGroups(mockGroups);
+        setPublicGroups(mockPublicGroups);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchGroups();
   }, []);
 
-  function joinGroupByCode() {
+  async function joinGroupByCode() {
     if (!inviteCode.trim()) return;
-    const group = [...mockGroups, ...mockPublicGroups].find(g => g.inviteCode === inviteCode.trim());
-    if (group) {
-      if (!groups.some(g => g.id === group.id)) {
-        setGroups([...groups, group]);
+    try {
+      const result = await groupService.joinGroupByCode(inviteCode.trim());
+
+      // Redirect to the group page
+      navigate(`/groups/${result.group.id}`);
+    } catch (error: any) {
+      console.error('Error joining group by code:', error);
+      alert(error.message || 'Code invalide ou erreur lors de la jonction au groupe');
+    }
+  }
+
+  async function handleJoinGroup(groupId: string, event: React.MouseEvent) {
+    event.stopPropagation(); // Prevent navigation when clicking button
+    try {
+      await groupService.joinGroup(groupId);
+      // Redirect to the group page
+      navigate(`/groups/${groupId}`);
+    } catch (error: any) {
+      console.error('Error joining group:', error);
+      // Check if error is about being banned
+      if (error.message && error.message.includes('banned')) {
+        alert('Vous êtes banni de ce groupe et ne pouvez pas le rejoindre.');
+      } else {
+        alert(error.message || 'Erreur lors de la jonction au groupe');
       }
-      setInviteCode('');
-    } else {
-      alert('Code invalide');
     }
   }
 
@@ -197,20 +232,44 @@ export default function Dashboard() {
                     <p className="text-slate-400 text-sm mb-3 line-clamp-2">{group.description}</p>
                   )}
 
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-slate-300 text-sm">
-                      <Trophy className="w-4 h-4 text-emerald-400" />
-                      <span className="font-medium">{group.competitionType}</span>
+                  {(group.competitionType || group.competitionName) && (
+                    <div className="space-y-2 mb-4">
+                      {group.competitionType && (
+                        <div className="flex items-center gap-2 text-slate-300 text-sm">
+                          <Trophy className="w-4 h-4 text-emerald-400" />
+                          <span className="font-medium">{group.competitionType}</span>
+                        </div>
+                      )}
+                      {group.competitionName && (
+                        <div className="text-slate-400 text-sm ml-6">{group.competitionName}</div>
+                      )}
                     </div>
-                    <div className="text-slate-400 text-sm ml-6">{group.competitionName}</div>
-                  </div>
+                  )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-700">
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
-                      <Users className="w-4 h-4" />
-                      <span>{group.memberCount || 0} membre(s)</span>
+                  {group.memberCount !== undefined && (
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+                      <div className="flex items-center gap-2 text-slate-400 text-sm">
+                        <Users className="w-4 h-4" />
+                        <span>{group.memberCount} membre(s)</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {activeTab === 'public' && !isMember && (
+                    <button
+                      onClick={(e) => handleJoinGroup(group.id, e)}
+                      className="w-full mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Rejoindre
+                    </button>
+                  )}
+
+                  {activeTab === 'public' && isMember && (
+                    <div className="w-full mt-4 px-4 py-2 bg-slate-700/50 text-slate-400 rounded-lg text-center text-sm">
+                      Déjà membre
+                    </div>
+                  )}
                 </div>
               );
             })}

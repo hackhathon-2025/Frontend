@@ -14,17 +14,23 @@ export interface Profile {
 }
 
 export interface Group {
-  id?: string;
+  id: string;
   name: string;
   description: string | null;
   isPublic: boolean;
   ownerId: string;
   createdAt: string;
-  updatedAt: string;
-  competitionId: string;
-  scoringRules: any;
+  updatedAt?: string;
+  competitionId?: string | null;
+  scoringRules?: any;
   inviteCode?: string;
-  // memberCount?: number;
+  memberCount?: number;
+  competitionType?: string;
+  competitionName?: string;
+  owner?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface GroupMember {
@@ -36,6 +42,13 @@ export interface GroupMember {
   group?: Group;
 }
 
+export interface Player {
+  id: number;
+  name: string;
+  country: string;
+  ranking: number;
+}
+
 export interface Match {
   id: number;
   competition_id: number;
@@ -44,8 +57,8 @@ export interface Match {
   start_time: string; // Format TIMESTAMP
   round: string; // Ex: '1er Tour', 'Demi-Finale'
   status: string;
-  player1: string;
-  player2: string;
+  player1: string | Player;
+  player2: string | Player;
   score: string | null;
 }
 

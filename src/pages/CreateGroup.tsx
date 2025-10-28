@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { ArrowLeft, Trophy, Users, Target } from "lucide-react";
 import { Group } from "../types";
+import { useNavigate } from "react-router-dom";
 
 interface Competition {
   id: number;
@@ -15,6 +16,7 @@ interface CreateGroupProps {
 
 export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProps) {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -59,7 +61,7 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
     console.log("Creating group:", newGroup);
 
     try {
-      const group = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/groups`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/groups`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,17 +70,20 @@ export default function CreateGroup({ onClose, onGroupCreated }: CreateGroupProp
         body: JSON.stringify(newGroup),
       });
 
-      if (!group.ok) {
+      if (!response.ok) {
         throw new Error("Failed to create group");
       }
 
-      console.log("group created : " + group);
+      const createdGroup = await response.json();
+      console.log("group created : ", createdGroup);
+
+      // Redirect to the created group
+      navigate(`/groups/${createdGroup.id}`);
     } catch (error) {
       console.error("Error creating group:", error);
-      return;
+      alert("Erreur lors de la création du groupe");
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (

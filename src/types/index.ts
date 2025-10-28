@@ -49,6 +49,29 @@ export interface Player {
   ranking: number;
 }
 
+export interface LiveScore {
+  set: number;
+  game: number;
+  point: string;
+}
+
+export interface ScoreSets {
+  p1: number[];
+  p2: number[];
+}
+
+export interface MatchResult {
+  id: number;
+  match_id: number;
+  winner_id: number | null;
+  score_sets: ScoreSets | null;
+  live_score: LiveScore | null;
+  duration: number | null;
+  winner: Player | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Match {
   id: number;
   competition_id: number;
@@ -59,7 +82,7 @@ export interface Match {
   status: string;
   player1: string | Player;
   player2: string | Player;
-  score: string | null;
+  result?: MatchResult | null;
 }
 
 export interface Prediction {
@@ -67,13 +90,11 @@ export interface Prediction {
   userId: string;
   groupId: string;
   matchId: string;
-  winner: string;
+  winnerId: number;
   createdAt: string;
   updatedAt: string;
   user?: User;
   group?: Group;
   match?: Match;
-  predictedHomeScore?: number;
-  predictedAwayScore?: number;
   pointsEarned?: number;
 }

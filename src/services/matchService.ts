@@ -1,4 +1,4 @@
-import { Match } from '../types';
+import { Match, Player, MatchResult } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -27,7 +27,7 @@ export interface ApiMatch {
   status: string;
   player1?: ApiPlayer;
   player2?: ApiPlayer;
-  score?: string | null;
+  result?: any;
 }
 
 function mapApiMatchToMatch(apiMatch: ApiMatch): Match {
@@ -41,7 +41,7 @@ function mapApiMatchToMatch(apiMatch: ApiMatch): Match {
     status: apiMatch.status,
     player1: apiMatch.player1 || `Player ${apiMatch.player1_id}`,
     player2: apiMatch.player2 || `Player ${apiMatch.player2_id}`,
-    score: apiMatch.score,
+    result: apiMatch.result || null,
   };
 }
 

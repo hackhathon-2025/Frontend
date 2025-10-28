@@ -13,13 +13,11 @@ function getAuthHeaders(): HeadersInit {
 export interface CreatePredictionData {
   matchId: number;
   groupId: string;
-  predictedHomeScore: number;
-  predictedAwayScore: number;
+  winnerId: number;
 }
 
 export interface UpdatePredictionData {
-  predictedHomeScore: number;
-  predictedAwayScore: number;
+  winnerId: number;
 }
 
 export const predictionService = {
